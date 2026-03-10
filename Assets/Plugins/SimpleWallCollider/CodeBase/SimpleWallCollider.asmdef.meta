@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 14e61d7d13b3c064d93a22ce199cbb6d
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307337
+  packageName: Simple Wall Collider
+  packageVersion: 1.0
+  assetPath: Assets/Plugins/SimpleWallCollider/CodeBase/SimpleWallCollider.asmdef
+  uploadId: 722316

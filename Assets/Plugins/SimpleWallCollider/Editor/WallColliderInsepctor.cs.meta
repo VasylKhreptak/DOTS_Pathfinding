@@ -1,0 +1,10 @@
+﻿fileFormatVersion: 2
+guid: 46c651c328604ad18602c88a9dc46039
+timeCreated: 1736254658
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307337
+  packageName: Simple Wall Collider
+  packageVersion: 1.0
+  assetPath: Assets/Plugins/SimpleWallCollider/Editor/WallColliderInsepctor.cs
+  uploadId: 722316

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &434108280460658548
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7340160189939864204}
+  - component: {fileID: 8630067915201281243}
+  m_Layer: 0
+  m_Name: ProjectScope
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7340160189939864204
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434108280460658548}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.8655061, y: 4.376372, z: -1.6079028}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8630067915201281243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434108280460658548}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 230cfc2d07a24b3db22bc4bf876ffdf7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  parentReference:
+    TypeName: 
+  autoRun: 0
+  autoInjectGameObjects: []
+  _coroutineRunnerPrefab: {fileID: 2557609162266765978, guid: af20cc914570f91468c1d19709321c30, type: 3}
+  _eventSystemPrefab: {fileID: 5017999668956972448, guid: 70ce7d8b26f4c2f4ea70ee37d23581d5, type: 3}
+  _audioMixer: {fileID: 24100000, guid: d099131a584a937459ef53a6722aaeae, type: 2}
+  _audioServicePreferences:
+    InitialSize: 10
+    MaxSize: 50
+    DefaultSettings:
+      AudioMixerGroup: {fileID: 0}
+      Mute: 0
+      BypassEffects: 0
+      BypassListenerEffects: 0
+      BypassReverbZones: 0
+      Loop: 0
+      Priority: 128
+      Volume: 1
+      Pitch: 1
+      StereoPan: 0
+      SpatialBlend: 1
+      ReverbZoneMix: 1
+      DopplerLevel: 1
+      Spread: 0
+      RolloffMode: 0
+      MinDistance: 1
+      MaxDistance: 500
+  _vibrationServiceConfig: {fileID: 11400000, guid: e2830a81fce39fc46a25e219296e9617, type: 2}
+  _windowFactoryConfig: {fileID: 11400000, guid: 5b4e84f3e2f638b43af780474ee8bea4, type: 2}

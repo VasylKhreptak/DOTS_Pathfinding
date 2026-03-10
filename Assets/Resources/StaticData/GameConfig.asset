@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84647dd5db1ab8748910c4e8588df5bd, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: 
+  _bootstrapScene:
+    _sceneOB: {fileID: 102900000, guid: 41e2ab1aacabcea4e866de989efaf9fc, type: 3}
+    _name: Bootstrap
+    _path: Assets/Scenes/Bootstrap.unity
+    _buildIndex: 0
+  _menuScene:
+    _sceneOB: {fileID: 102900000, guid: f4d852f7c8af462489c3f28c95683313, type: 3}
+    _name: Menu
+    _path: Assets/Scenes/Menu.unity
+    _buildIndex: 1
+  _gameplayScene:
+    _sceneOB: {fileID: 102900000, guid: 04aa643467e91d3439faf8d31ca49898, type: 3}
+    _name: Gameplay
+    _path: 
+    _buildIndex: -1
+  _editorLogType: -1
+  _buildLogType: 7

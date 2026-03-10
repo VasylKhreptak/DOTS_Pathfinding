@@ -1,0 +1,19 @@
+{
+  "name": "AudioService",
+  "rootNamespace": "",
+  "references": [
+    "GUID:560b04d1a97f54a4e82edc0cbbb69285",
+    "GUID:09b264e01def28b47b407eed7919f633",
+    "GUID:3704f520432316244a4cab0b203063d5",
+    "GUID:c89b49bddc62cc84482047ef0f075dc7"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

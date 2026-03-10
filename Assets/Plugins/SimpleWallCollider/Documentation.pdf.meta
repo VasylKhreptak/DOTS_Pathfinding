@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 38539b13594d6c042800422c2853976a
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307337
+  packageName: Simple Wall Collider
+  packageVersion: 1.0
+  assetPath: Assets/Plugins/SimpleWallCollider/Documentation.pdf
+  uploadId: 722316
