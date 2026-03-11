@@ -6,9 +6,9 @@ using Gameplay.Systems.PhysicsAdditions;
 using Infrastructure.Services.Log.Core;
 using Infrastructure.StateMachine.Main.Core;
 using Infrastructure.StateMachine.Main.States.Core;
-using Systems;
 using Unity.Entities;
 using VContainer;
+using NavMeshBakeSystem = Entities.Systems.Pathdinding.NavMeshBakeSystem;
 
 namespace Gameplay.StateMachine.States
 {

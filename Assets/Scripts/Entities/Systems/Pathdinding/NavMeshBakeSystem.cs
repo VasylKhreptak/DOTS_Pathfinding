@@ -24,28 +24,38 @@ using NavMeshModifier = Entities.Bakers.NavMeshModifier;
 using NavMeshModifierVolume = Entities.Bakers.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
 
-namespace Systems
+namespace Entities.Systems.Pathdinding
 {
     [DisableAutoCreation]
     public partial class NavMeshBakeSystem : SystemBase
     {
         private const float BakeInterval = 2f;
-        private const float Range = 450f;
+        private const float Range = 50f;
         private const int DefaultBufferSize = 1024 * 2;
-
-        private bool _isBaking;
-        private float _lastBakeTime;
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
 
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
         private readonly List<NavMeshBuildMarkup> _markupsBuffer = new List<NavMeshBuildMarkup>();
 
+        private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
+        private ComponentLookup<Parent> _parentLookup;
+        private BufferLookup<AffectedAgentElement> _affectedAgentBufferLookup;
+        private ComponentLookup<MeshColliderMeshReference> _meshColliderMeshReferenceLookup;
+
         private NativeList<BurstedNavMeshBuildSource> _sourcesNativeBuffer;
+
+        private bool _isBaking;
+        private float _lastBakeTime;
 
         protected override void OnCreate()
         {
             _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(DefaultBufferSize, Allocator.Persistent);
+
+            _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
+            _parentLookup = GetComponentLookup<Parent>(true);
+            _affectedAgentBufferLookup = GetBufferLookup<AffectedAgentElement>(true);
+            _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
         }
 
         protected override void OnUpdate()
@@ -81,7 +91,9 @@ namespace Systems
 
                 CollectSources(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea, _sourcesBuffer);
 
-                // NavMeshBuilder.CollectSources(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, navMeshSurface.defaultArea, _markups, _sources);
+                // _markupsBuffer.Clear();
+                // _sourcesBuffer.Clear();
+                // NavMeshBuilder.CollectSources(bounds, navMeshSurface.layerMask.value, navMeshSurface.useGeometry, navMeshSurface.defaultArea, _markupsBuffer, _sourcesBuffer);
 
                 UniTask task = NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask();
 
@@ -135,218 +147,313 @@ namespace Systems
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
 
-            EntityManager em = EntityManager;
+            _navMeshModifierLookup.Update(this);
+            _parentLookup.Update(this);
+            _affectedAgentBufferLookup.Update(this);
+            _meshColliderMeshReferenceLookup.Update(this);
 
             if (geometry == NavMeshCollectGeometry.PhysicsColliders)
             {
-                foreach ((RefRO<LocalToWorld> ltw, RefRO<PhysicsCollider> physicsCollider, Entity entity) in SystemAPI
-                             .Query<RefRO<LocalToWorld>, RefRO<PhysicsCollider>>()
-                             .WithEntityAccess())
+                CollectPhysicSourcesJob collectPhysicSourcesJob = new CollectPhysicSourcesJob
                 {
-                    if (physicsCollider.ValueRO.IsValid == false)
-                        continue;
+                    Bounds = new Aabb() {Min =  bounds.min, Max = bounds.max},
+                    LayerMaskValue = layerMask.value,
+                    GenerateLinks = generateLinks,
+                    AgentID = agentID,
+                    DefaultArea = defaultArea,
+                    NavMeshModifierLookup = _navMeshModifierLookup,
+                    ParentLookup = _parentLookup,
+                    AffectedAgentBufferLookup = _affectedAgentBufferLookup,
+                    MeshСolliderMeshReferenceLookup = _meshColliderMeshReferenceLookup,
+                    Sources = _sourcesNativeBuffer.AsParallelWriter()
+                };
 
-                    CollisionFilter filter = physicsCollider.ValueRO.Value.Value.GetCollisionFilter();
-
-                    if ((filter.BelongsTo & (uint)layerMask.value) == 0)
-                        continue;
-
-                    NavMeshBuildSource source = new NavMeshBuildSource
-                    {
-                        area = defaultArea,
-                        generateLinks = generateLinks
-                    };
-
-                    if (em.HasComponentInParent<NavMeshModifier>(entity, out Entity componentEntity))
-                    {
-                        NavMeshModifier navMeshModifier = em.GetComponentData<NavMeshModifier>(componentEntity);
-
-                        if (componentEntity != entity && navMeshModifier.ApplyToChildren == false)
-                            continue;
-
-                        DynamicBuffer<AffectedAgentElement> affectedAgents = em.GetBuffer<AffectedAgentElement>(componentEntity);
-
-                        bool containsTargetAgent = false;
-
-                        foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
-                        {
-                            if (affectedAgentElement.ID == agentID)
-                            {
-                                containsTargetAgent = true;
-                                break;
-                            }
-                        }
-
-                        if (containsTargetAgent)
-                        {
-                            if (navMeshModifier.Mode == NavMeshModifierMode.RemoveObject)
-                                continue;
-
-                            if (navMeshModifier.OverrideArea)
-                                source.area = navMeshModifier.Area;
-
-                            if (navMeshModifier.OverrideGenerateLinks)
-                                source.generateLinks = navMeshModifier.GenerateLinks;
-                        }
-                    }
-
-                    unsafe
-                    {
-                        Collider* collider = physicsCollider.ValueRO.ColliderPtr;
-
-                        switch (collider->Type)
-                        {
-                            case ColliderType.Box:
-                            {
-                                BoxCollider boxCollider = *(BoxCollider*)collider;
-
-                                float4x4 transform = float4x4.TRS(ltw.ValueRO.Position, ltw.ValueRO.Rotation, new float3(1));
-
-                                float3 centerOffset = boxCollider.Center;
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    centerOffset *= ltw.ValueRO.Value.Scale();
-
-                                transform = math.mul(transform, float4x4.Translate(centerOffset));
-
-                                source.shape = NavMeshBuildSourceShape.Box;
-                                source.transform = transform;
-                                source.size = boxCollider.Size;
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    source.size *= ltw.ValueRO.Value.Scale();
-
-                                break;
-                            }
-                            case ColliderType.Sphere:
-                            {
-                                SphereCollider sphereCollider = *(SphereCollider*)collider;
-
-                                float4x4 transform = float4x4.TRS(ltw.ValueRO.Position, ltw.ValueRO.Rotation, new float3(1));
-
-                                float3 centerOffset = sphereCollider.Center;
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    centerOffset *= ltw.ValueRO.Value.Scale();
-
-                                transform = math.mul(transform, float4x4.Translate(centerOffset));
-
-                                source.shape = NavMeshBuildSourceShape.Sphere;
-                                source.transform = transform;
-                                source.size = new float3(sphereCollider.Radius * 2);
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    source.size *= ltw.ValueRO.Value.Scale();
-
-                                break;
-                            }
-                            case ColliderType.Capsule:
-                            {
-                                CapsuleCollider capsuleCollider = *(CapsuleCollider*)collider;
-
-                                float4x4 transform = float4x4.TRS(ltw.ValueRO.Position, ltw.ValueRO.Rotation, new float3(1));
-
-                                float3 centerOffset = capsuleCollider.Geometry.GetCenter();
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    centerOffset *= ltw.ValueRO.Value.Scale();
-
-                                transform = math.mul(transform, float4x4.Translate(centerOffset));
-
-                                source.shape = NavMeshBuildSourceShape.Capsule;
-                                source.transform = transform;
-                                float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
-                                float width = capsuleCollider.Radius * 2;
-                                source.size = new float3(width, height, width);
-
-                                if (ltw.ValueRO.Value.HasNonUniformScale() == false)
-                                    source.size *= ltw.ValueRO.Value.Scale();
-
-                                break;
-                            }
-                            case ColliderType.Mesh:
-                            {
-                                if (em.HasComponent<MeshColliderMeshReference>(entity))
-                                {
-                                    MeshColliderMeshReference meshColliderMeshReference = em.GetComponentData<MeshColliderMeshReference>(entity);
-
-                                    source.shape = NavMeshBuildSourceShape.Mesh;
-                                    source.transform = ltw.ValueRO.Value;
-                                    source.sourceObject = meshColliderMeshReference.Value.Value;
-                                }
-
-                                break;
-                            }
-                            default:
-                                continue;
-                        }
-                    }
-
-                    sources.Add(source);
-                }
+                collectPhysicSourcesJob.ScheduleParallel(Dependency).Complete();
             }
             else
             {
-                foreach ((RefRO<LocalToWorld> ltw, RefRO<MeshRendererMeshReference> meshRendererMeshReference, RenderFilterSettings renderFilterSettings,
-                             Entity entity) in SystemAPI.Query<RefRO<LocalToWorld>, RefRO<MeshRendererMeshReference>, RenderFilterSettings>().WithEntityAccess())
+                CollectMeshSourcesJob collectMeshSourcesJob = new CollectMeshSourcesJob
                 {
-                    if (((1 << renderFilterSettings.Layer) & (uint)layerMask.value) == 0)
-                        continue;
+                    Bounds = new AABB { Center = bounds.center, Extents = bounds.extents },
+                    LayerMaskValue = layerMask.value,
+                    GenerateLinks = generateLinks,
+                    AgentID = agentID,
+                    DefaultArea = defaultArea,
+                    NavMeshModifierLookup = _navMeshModifierLookup,
+                    ParentLookup = _parentLookup,
+                    AffectedAgentBufferLookup = _affectedAgentBufferLookup,
+                    Sources = _sourcesNativeBuffer.AsParallelWriter()
+                };
 
-                    NavMeshBuildSource source = new NavMeshBuildSource
+                collectMeshSourcesJob.ScheduleParallel(Dependency).Complete();
+            }
+
+            CollectNavMeshModifierVolumeSourcesJob collectNavMeshModifierVolumeSourcesJob = new CollectNavMeshModifierVolumeSourcesJob
+            {
+                Bounds = new AABB { Center = bounds.center, Extents = bounds.extents },
+                AgentID = agentID,
+                Sources = _sourcesNativeBuffer.AsParallelWriter()
+            };
+
+            collectNavMeshModifierVolumeSourcesJob.ScheduleParallel(Dependency).Complete();
+
+            int count = _sourcesNativeBuffer.Length;
+            NativeArray<BurstedNavMeshBuildSource> nativeBuffer = _sourcesNativeBuffer.AsArray();
+
+            for (int i = 0; i < count; i++)
+                sources.Add(nativeBuffer[i]);
+        }
+
+        [BurstCompile]
+        public partial struct CollectPhysicSourcesJob : IJobEntity
+        {
+            public Aabb Bounds;
+            public int LayerMaskValue;
+            public bool GenerateLinks;
+            public int AgentID;
+            public int DefaultArea;
+
+            [ReadOnly] public ComponentLookup<NavMeshModifier> NavMeshModifierLookup;
+            [ReadOnly] public ComponentLookup<Parent> ParentLookup;
+            [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
+            [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshСolliderMeshReferenceLookup;
+
+            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+
+            public void Execute(ref LocalToWorld ltw, ref PhysicsCollider physicsCollider, Entity entity)
+            {
+                if (physicsCollider.IsValid == false)
+                    return;
+
+                Aabb colliderBounds = physicsCollider.Value.Value.CalculateAabb();
+                colliderBounds.Min = math.transform(ltw.Value, colliderBounds.Min);
+                colliderBounds.Max = math.transform(ltw.Value, colliderBounds.Max);
+                
+                if((Bounds.Overlaps(colliderBounds) || Bounds.Contains(colliderBounds.Center)) == false)
+                    return;
+                
+                CollisionFilter filter = physicsCollider.Value.Value.GetCollisionFilter();
+
+                if ((filter.BelongsTo & LayerMaskValue) == 0)
+                    return;
+
+                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
+                {
+                    Area = DefaultArea,
+                    GenerateLinks = GenerateLinks
+                };
+
+                if (EntityManagerExtensions.HasComponentInParent(entity, ref NavMeshModifierLookup, ref ParentLookup, out Entity componentEntity))
+                {
+                    NavMeshModifier navMeshModifier = NavMeshModifierLookup[componentEntity];
+
+                    if (componentEntity != entity && navMeshModifier.ApplyToChildren == false)
+                        return;
+
+                    DynamicBuffer<AffectedAgentElement> affectedAgents = AffectedAgentBufferLookup[componentEntity];
+
+                    bool containsTargetAgent = false;
+
+                    foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
                     {
-                        area = defaultArea,
-                        generateLinks = generateLinks,
-                        shape = NavMeshBuildSourceShape.Mesh,
-                        transform = ltw.ValueRO.Value,
-                        sourceObject = meshRendererMeshReference.ValueRO.Value.Value
-                    };
-
-                    if (em.HasComponentInParent<NavMeshModifier>(entity, out Entity componentEntity))
-                    {
-                        NavMeshModifier navMeshModifier = em.GetComponentData<NavMeshModifier>(componentEntity);
-
-                        if (componentEntity != entity && navMeshModifier.ApplyToChildren == false)
-                            continue;
-
-                        DynamicBuffer<AffectedAgentElement> affectedAgents = em.GetBuffer<AffectedAgentElement>(componentEntity);
-
-                        bool containsTargetAgent = false;
-
-                        foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
+                        if (affectedAgentElement.ID == AgentID)
                         {
-                            if (affectedAgentElement.ID == agentID)
-                            {
-                                containsTargetAgent = true;
-                                break;
-                            }
-                        }
-
-                        if (containsTargetAgent)
-                        {
-                            if (navMeshModifier.Mode == NavMeshModifierMode.RemoveObject)
-                                continue;
-
-                            if (navMeshModifier.OverrideArea)
-                                source.area = navMeshModifier.Area;
-
-                            if (navMeshModifier.OverrideGenerateLinks)
-                                source.generateLinks = navMeshModifier.GenerateLinks;
+                            containsTargetAgent = true;
+                            break;
                         }
                     }
 
-                    sources.Add(source);
-                }
-            }
+                    if (containsTargetAgent)
+                    {
+                        if (navMeshModifier.Mode == NavMeshModifierMode.RemoveObject)
+                            return;
 
-            foreach ((RefRO<LocalToWorld> ltw, RefRO<NavMeshModifierVolume> navMeshModifierVolume, DynamicBuffer<AffectedAgentElement> affectedAgents) in
-                     SystemAPI.Query<RefRO<LocalToWorld>, RefRO<NavMeshModifierVolume>, DynamicBuffer<AffectedAgentElement>>())
+                        if (navMeshModifier.OverrideArea)
+                            source.Area = navMeshModifier.Area;
+
+                        if (navMeshModifier.OverrideGenerateLinks)
+                            source.GenerateLinks = navMeshModifier.GenerateLinks;
+                    }
+                }
+
+                unsafe
+                {
+                    Collider* collider = physicsCollider.ColliderPtr;
+
+                    switch (collider->Type)
+                    {
+                        case ColliderType.Box:
+                        {
+                            BoxCollider boxCollider = *(BoxCollider*)collider;
+
+                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+
+                            float3 centerOffset = boxCollider.Center;
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                centerOffset *= ltw.Value.Scale();
+
+                            transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                            source.Shape = NavMeshBuildSourceShape.Box;
+                            source.TransformMatrix = transform;
+                            source.Size = boxCollider.Size;
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                source.Size *= ltw.Value.Scale();
+
+                            break;
+                        }
+                        case ColliderType.Sphere:
+                        {
+                            SphereCollider sphereCollider = *(SphereCollider*)collider;
+
+                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+
+                            float3 centerOffset = sphereCollider.Center;
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                centerOffset *= ltw.Value.Scale();
+
+                            transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                            source.Shape = NavMeshBuildSourceShape.Sphere;
+                            source.TransformMatrix = transform;
+                            source.Size = new float3(sphereCollider.Radius * 2);
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                source.Size *= ltw.Value.Scale();
+
+                            break;
+                        }
+                        case ColliderType.Capsule:
+                        {
+                            CapsuleCollider capsuleCollider = *(CapsuleCollider*)collider;
+
+                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+
+                            float3 centerOffset = capsuleCollider.Geometry.GetCenter();
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                centerOffset *= ltw.Value.Scale();
+
+                            transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                            source.Shape = NavMeshBuildSourceShape.Capsule;
+                            source.TransformMatrix = transform;
+                            float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
+                            float width = capsuleCollider.Radius * 2;
+                            source.Size = new float3(width, height, width);
+
+                            if (ltw.Value.HasNonUniformScale() == false)
+                                source.Size *= ltw.Value.Scale();
+
+                            break;
+                        }
+                        case ColliderType.Mesh:
+                        {
+                            if (MeshСolliderMeshReferenceLookup.HasComponent(entity))
+                            {
+                                MeshColliderMeshReference meshColliderMeshReference = MeshСolliderMeshReferenceLookup[entity];
+
+                                source.Shape = NavMeshBuildSourceShape.Mesh;
+                                source.TransformMatrix = ltw.Value;
+                                source.MeshReference = meshColliderMeshReference.Value;
+                            }
+
+                            break;
+                        }
+                        default:
+                            return;
+                    }
+                }
+
+                Sources.AddNoResize(source);
+            }
+        }
+
+        [BurstCompile]
+        public partial struct CollectMeshSourcesJob : IJobEntity
+        {
+            public AABB Bounds;
+            public int LayerMaskValue;
+            public bool GenerateLinks;
+            public int AgentID;
+            public int DefaultArea;
+
+            [ReadOnly] public ComponentLookup<NavMeshModifier> NavMeshModifierLookup;
+            [ReadOnly] public ComponentLookup<Parent> ParentLookup;
+            [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
+
+            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+
+            public void Execute(ref LocalToWorld ltw, ref MeshRendererMeshReference meshRendererMeshReference, RenderFilterSettings renderFilterSettings,
+                Entity entity)
+            {
+                if (((1 << renderFilterSettings.Layer) & (uint)LayerMaskValue) == 0)
+                    return;
+
+                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
+                {
+                    Area = DefaultArea,
+                    GenerateLinks = GenerateLinks,
+                    Shape = NavMeshBuildSourceShape.Mesh,
+                    TransformMatrix = ltw.Value,
+                    MeshReference = meshRendererMeshReference.Value
+                };
+
+                if (EntityManagerExtensions.HasComponentInParent(entity, ref NavMeshModifierLookup, ref ParentLookup, out Entity componentEntity))
+                {
+                    NavMeshModifier navMeshModifier = NavMeshModifierLookup[componentEntity];
+
+                    if (componentEntity != entity && navMeshModifier.ApplyToChildren == false)
+                        return;
+
+                    DynamicBuffer<AffectedAgentElement> affectedAgents = AffectedAgentBufferLookup[componentEntity];
+
+                    bool containsTargetAgent = false;
+
+                    foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
+                    {
+                        if (affectedAgentElement.ID == AgentID)
+                        {
+                            containsTargetAgent = true;
+                            break;
+                        }
+                    }
+
+                    if (containsTargetAgent)
+                    {
+                        if (navMeshModifier.Mode == NavMeshModifierMode.RemoveObject)
+                            return;
+
+                        if (navMeshModifier.OverrideArea)
+                            source.Area = navMeshModifier.Area;
+
+                        if (navMeshModifier.OverrideGenerateLinks)
+                            source.GenerateLinks = navMeshModifier.GenerateLinks;
+                    }
+                }
+
+                Sources.AddNoResize(source);
+            }
+        }
+
+        [BurstCompile]
+        public partial struct CollectNavMeshModifierVolumeSourcesJob : IJobEntity
+        {
+            public AABB Bounds;
+            public int AgentID;
+
+            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+
+            public void Execute(ref LocalToWorld ltw, ref NavMeshModifierVolume navMeshModifierVolume, DynamicBuffer<AffectedAgentElement> affectedAgents)
             {
                 bool containsTargetAgent = false;
 
                 foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
                 {
-                    if (affectedAgentElement.ID == agentID)
+                    if (affectedAgentElement.ID == AgentID)
                     {
                         containsTargetAgent = true;
                         break;
@@ -354,38 +461,20 @@ namespace Systems
                 }
 
                 if (containsTargetAgent == false)
-                    continue;
+                    return;
 
-                float4x4 transform = float4x4.TRS(ltw.ValueRO.Position, ltw.ValueRO.Rotation, new float3(1));
-                transform = math.mul(transform, float4x4.Translate(navMeshModifierVolume.ValueRO.Center * ltw.ValueRO.Value.Scale()));
+                float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+                transform = math.mul(transform, float4x4.Translate(navMeshModifierVolume.Center * ltw.Value.Scale()));
 
-                NavMeshBuildSource source = new NavMeshBuildSource
+                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
                 {
-                    area = navMeshModifierVolume.ValueRO.AreaType,
-                    shape = NavMeshBuildSourceShape.ModifierBox,
-                    transform = transform,
-                    size = navMeshModifierVolume.ValueRO.Size * ltw.ValueRO.Value.Scale(),
+                    Area = navMeshModifierVolume.AreaType,
+                    Shape = NavMeshBuildSourceShape.ModifierBox,
+                    TransformMatrix = transform,
+                    Size = navMeshModifierVolume.Size * ltw.Value.Scale(),
                 };
 
-                sources.Add(source);
-            }
-        }
-
-        [BurstCompile]
-        public partial struct CollectPhysicSourcesJob : IJobEntity
-        {
-            public AABB Bounds;
-            public LayerMask LayerMask;
-            public int LayerMaskValue;
-            bool GenerateLinks;
-            int AgentID;
-            int DefaultArea;
-            
-            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
-            
-            public void Execute(ref LocalToWorld ltw, ref PhysicsCollider physicsCollider, Entity entity)
-            {
-                
+                Sources.AddNoResize(source);
             }
         }
     }
