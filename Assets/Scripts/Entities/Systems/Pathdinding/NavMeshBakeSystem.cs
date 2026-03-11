@@ -193,12 +193,8 @@ namespace Entities.Systems.Pathdinding
 
             NavMeshBuildSource source = default;
 
-            long totalTicks = 0;
-
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
             {
-                Stopwatch stopwatch = Stopwatch.StartNew();
-
                 BurstedNavMeshBuildSource burstedSource = _sourcesNativeBuffer[i];
 
                 source.transform = burstedSource.TransformMatrix;
@@ -210,15 +206,9 @@ namespace Entities.Systems.Pathdinding
 
                 sources.Add(source);
 
-                stopwatch.Stop();
-
-                totalTicks += stopwatch.ElapsedTicks;
-
                 if (i % NavMeshSourceConversionBatchCount == 0)
                     await UniTask.Yield(cancellationToken: token);
             }
-
-            Debug.LogError($"Ticks per source conversion: {(double)totalTicks / sources.Count}, total ticks: {totalTicks}, sources count: {sources.Count}");
         }
 
         private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry)
