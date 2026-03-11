@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Components;
 using Cysharp.Threading.Tasks;
 using Entities.Bakers;
@@ -11,6 +12,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Entities.Graphics;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
@@ -32,21 +34,21 @@ namespace Entities.Systems.Pathdinding
         private const float BakeInterval = 2f;
         private const float Range = 50f;
         private const int DefaultBufferSize = 1024 * 2;
+        private const int NavMeshSourceConversionBatchCount = 64;
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
-
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
-        private readonly List<NavMeshBuildMarkup> _markupsBuffer = new List<NavMeshBuildMarkup>();
+        private NativeList<BurstedNavMeshBuildSource> _sourcesNativeBuffer;
 
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
         private BufferLookup<AffectedAgentElement> _affectedAgentBufferLookup;
         private ComponentLookup<MeshColliderMeshReference> _meshColliderMeshReferenceLookup;
 
-        private NativeList<BurstedNavMeshBuildSource> _sourcesNativeBuffer;
+        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         private bool _isBaking;
-        private float _lastBakeTime;
+        private float _lastCompletedBakeTime;
 
         protected override void OnCreate()
         {
@@ -63,25 +65,25 @@ namespace Entities.Systems.Pathdinding
             if (_isBaking)
                 return;
 
-            float time = (float)SystemAPI.Time.ElapsedTime;
-            if (time < _lastBakeTime + BakeInterval)
+            if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + BakeInterval)
                 return;
 
-            BakeNavMeshes();
+            BakeNavMeshes(_cts.Token).Forget();
         }
 
         protected override void OnDestroy()
         {
             _sourcesNativeBuffer.Dispose();
+            _cts.Cancel();
         }
 
-        private void BakeNavMeshes()
+        private async UniTask BakeNavMeshes(CancellationToken token)
         {
-            Bounds bounds = new Bounds(Vector3.zero, Vector3.one * Range * 2f);
-
-            List<UniTask> tasks = new List<UniTask>();
-
             Stopwatch stopwatch = Stopwatch.StartNew();
+
+            _isBaking = true;
+
+            Bounds bounds = new Bounds(Vector3.zero, Vector3.one * Range * 2f);
 
             AssignNavMeshData();
 
@@ -89,30 +91,25 @@ namespace Entities.Systems.Pathdinding
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
 
-                CollectSources(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea, _sourcesBuffer);
+                Stopwatch collectSourceStopwatch = Stopwatch.StartNew();
 
-                // _markupsBuffer.Clear();
-                // _sourcesBuffer.Clear();
-                // NavMeshBuilder.CollectSources(bounds, navMeshSurface.layerMask.value, navMeshSurface.useGeometry, navMeshSurface.defaultArea, _markupsBuffer, _sourcesBuffer);
+                await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
+                    _sourcesBuffer, token);
 
-                UniTask task = NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask();
+                collectSourceStopwatch.Stop();
 
-                tasks.Add(task);
+                Debug.LogError(
+                    $"Collect sources duration. Surface name: {navMeshSurface.name}, duration: {collectSourceStopwatch.ElapsedMilliseconds} ms, sources count: {_sourcesBuffer.Count}");
+
+                await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
             }
 
-            _isBaking = true;
-            UniTask
-                .WhenAll(tasks)
-                .ContinueWith(() =>
-                {
-                    _isBaking = false;
-                    _lastBakeTime = (float)SystemAPI.Time.ElapsedTime;
-                })
-                .Forget();
+            _isBaking = false;
+            _lastCompletedBakeTime = (float)SystemAPI.Time.ElapsedTime;
 
             stopwatch.Stop();
 
-            Debug.LogError("Collect sources duration: " + stopwatch.Elapsed.TotalMilliseconds + "ms, sources count: " + _sourcesBuffer.Count);
+            Debug.LogError("Bake duration: " + stopwatch.ElapsedMilliseconds + " ms");
         }
 
         private void AssignNavMeshData()
@@ -132,25 +129,20 @@ namespace Entities.Systems.Pathdinding
             _navMeshDataBuffer.RemoveAll(navMeshData => NavMeshSurface.activeSurfaces.Any(surface => surface.navMeshData == navMeshData) == false);
         }
 
-        private void CollectSources(Bounds bounds, LayerMask layerMask, NavMeshCollectGeometry geometry, bool generateLinks, int agentID, int defaultArea,
-            List<NavMeshBuildSource> sources)
+        private async UniTask CollectSourcesAsync(Bounds bounds, LayerMask layerMask, NavMeshCollectGeometry geometry, bool generateLinks, int agentID, int defaultArea,
+            List<NavMeshBuildSource> sources, CancellationToken token)
         {
             sources.Clear();
             _sourcesNativeBuffer.Clear();
 
-            int collidersCount = SystemAPI.QueryBuilder().WithAll<PhysicsCollider>().Build().CalculateEntityCount();
-            int meshesCount = SystemAPI.QueryBuilder().WithAll<MeshRendererMeshReference>().Build().CalculateEntityCount();
-            int modifierVolumesCount = SystemAPI.QueryBuilder().WithAll<NavMeshModifierVolume>().Build().CalculateEntityCount();
-
-            int targetCapacity = math.max(collidersCount, meshesCount) + modifierVolumesCount;
-
-            if (_sourcesNativeBuffer.Capacity < targetCapacity)
-                _sourcesNativeBuffer.SetCapacity(targetCapacity);
+            EnsureSourceBufferCapacity(geometry);
 
             _navMeshModifierLookup.Update(this);
             _parentLookup.Update(this);
             _affectedAgentBufferLookup.Update(this);
             _meshColliderMeshReferenceLookup.Update(this);
+
+            JobHandle collectSourcesJobHandle;
 
             if (geometry == NavMeshCollectGeometry.PhysicsColliders)
             {
@@ -168,7 +160,7 @@ namespace Entities.Systems.Pathdinding
                     Sources = _sourcesNativeBuffer.AsParallelWriter()
                 };
 
-                collectPhysicSourcesJob.ScheduleParallel(Dependency).Complete();
+                collectSourcesJobHandle = collectPhysicSourcesJob.ScheduleParallel(Dependency);
             }
             else
             {
@@ -185,7 +177,7 @@ namespace Entities.Systems.Pathdinding
                     Sources = _sourcesNativeBuffer.AsParallelWriter()
                 };
 
-                collectMeshSourcesJob.ScheduleParallel(Dependency).Complete();
+                collectSourcesJobHandle = collectMeshSourcesJob.ScheduleParallel(Dependency);
             }
 
             CollectNavMeshModifierVolumeSourcesJob collectNavMeshModifierVolumeSourcesJob = new CollectNavMeshModifierVolumeSourcesJob
@@ -195,13 +187,61 @@ namespace Entities.Systems.Pathdinding
                 Sources = _sourcesNativeBuffer.AsParallelWriter()
             };
 
-            collectNavMeshModifierVolumeSourcesJob.ScheduleParallel(Dependency).Complete();
+            Dependency = collectNavMeshModifierVolumeSourcesJob.ScheduleParallel(collectSourcesJobHandle);
 
-            int count = _sourcesNativeBuffer.Length;
-            NativeArray<BurstedNavMeshBuildSource> nativeBuffer = _sourcesNativeBuffer.AsArray();
+            Dependency.Complete();
 
-            for (int i = 0; i < count; i++)
-                sources.Add(nativeBuffer[i]);
+            NavMeshBuildSource source = default;
+
+            long totalTicks = 0;
+
+            for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
+            {
+                Stopwatch stopwatch = Stopwatch.StartNew();
+
+                BurstedNavMeshBuildSource burstedSource = _sourcesNativeBuffer[i];
+
+                source.transform = burstedSource.TransformMatrix;
+                source.size = burstedSource.Size;
+                source.shape = burstedSource.Shape;
+                source.area = burstedSource.Area;
+                source.sourceObject = burstedSource.MeshReference.Value;
+                source.generateLinks = burstedSource.GenerateLinks;
+
+                sources.Add(source);
+
+                stopwatch.Stop();
+
+                totalTicks += stopwatch.ElapsedTicks;
+
+                if (i % NavMeshSourceConversionBatchCount == 0)
+                    await UniTask.Yield(cancellationToken: token);
+            }
+
+            Debug.LogError($"Ticks per source conversion: {(double)totalTicks / sources.Count}, total ticks: {totalTicks}, sources count: {sources.Count}");
+        }
+
+        private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry)
+        {
+            int targetCapacity;
+
+            int modifierVolumesCount = SystemAPI.QueryBuilder().WithAll<NavMeshModifierVolume>().Build().CalculateEntityCount();
+
+            if (geometry == NavMeshCollectGeometry.PhysicsColliders)
+            {
+                int collidersCount = SystemAPI.QueryBuilder().WithAll<PhysicsCollider>().Build().CalculateEntityCount();
+
+                targetCapacity = math.max(collidersCount, modifierVolumesCount);
+            }
+            else
+            {
+                int meshesCount = SystemAPI.QueryBuilder().WithAll<MeshRendererMeshReference>().Build().CalculateEntityCount();
+
+                targetCapacity = math.max(meshesCount, modifierVolumesCount);
+            }
+
+            if (_sourcesNativeBuffer.Capacity < targetCapacity)
+                _sourcesNativeBuffer.SetCapacity(targetCapacity);
         }
 
         [BurstCompile]

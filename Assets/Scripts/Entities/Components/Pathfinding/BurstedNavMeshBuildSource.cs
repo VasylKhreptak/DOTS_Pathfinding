@@ -26,5 +26,21 @@ namespace Entities.Components.Pathfinding
                 generateLinks = source.GenerateLinks
             };
         }
+
+        public static implicit operator BurstedNavMeshBuildSource(NavMeshBuildSource source)
+        {
+            return new BurstedNavMeshBuildSource
+            {
+                TransformMatrix = source.transform,
+                Size = source.size,
+                Shape = source.shape,
+                Area = source.area,
+                MeshReference = new UnityObjectRef<Mesh>()
+                {
+                    Value = source.sourceObject as Mesh
+                },
+                GenerateLinks = source.generateLinks
+            };
+        }
     }
 }
