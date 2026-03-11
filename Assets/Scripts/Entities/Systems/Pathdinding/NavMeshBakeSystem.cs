@@ -32,8 +32,8 @@ namespace Entities.Systems.Pathdinding
     public partial class NavMeshBakeSystem : SystemBase
     {
         private const float BakeInterval = 2f;
-        private const float Range = 50f;
-        private const int DefaultBufferSize = 1024 * 2;
+        private const float Range = 500f;
+        private const int DefaultSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
@@ -52,7 +52,7 @@ namespace Entities.Systems.Pathdinding
 
         protected override void OnCreate()
         {
-            _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(DefaultBufferSize, Allocator.Persistent);
+            _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(DefaultSourcesBufferSize, Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
@@ -87,7 +87,7 @@ namespace Entities.Systems.Pathdinding
 
             AssignNavMeshData();
 
-            foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces)
+            foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces.ToList())
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
 
@@ -191,6 +191,8 @@ namespace Entities.Systems.Pathdinding
 
             Dependency.Complete();
 
+            await UniTask.Yield(token);
+
             NavMeshBuildSource source = default;
 
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
@@ -207,7 +209,7 @@ namespace Entities.Systems.Pathdinding
                 sources.Add(source);
 
                 if (i % NavMeshSourceConversionBatchCount == 0)
-                    await UniTask.Yield(cancellationToken: token);
+                    await UniTask.Yield(token);
             }
         }
 
