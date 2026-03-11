@@ -156,7 +156,7 @@ namespace Entities.Systems.Pathdinding
             {
                 CollectPhysicSourcesJob collectPhysicSourcesJob = new CollectPhysicSourcesJob
                 {
-                    Bounds = new Aabb() {Min =  bounds.min, Max = bounds.max},
+                    Bounds = new Aabb() { Min = bounds.min, Max = bounds.max },
                     LayerMaskValue = layerMask.value,
                     GenerateLinks = generateLinks,
                     AgentID = agentID,
@@ -164,7 +164,7 @@ namespace Entities.Systems.Pathdinding
                     NavMeshModifierLookup = _navMeshModifierLookup,
                     ParentLookup = _parentLookup,
                     AffectedAgentBufferLookup = _affectedAgentBufferLookup,
-                    MeshСolliderMeshReferenceLookup = _meshColliderMeshReferenceLookup,
+                    MeshColliderMeshReferenceLookup = _meshColliderMeshReferenceLookup,
                     Sources = _sourcesNativeBuffer.AsParallelWriter()
                 };
 
@@ -216,7 +216,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public ComponentLookup<NavMeshModifier> NavMeshModifierLookup;
             [ReadOnly] public ComponentLookup<Parent> ParentLookup;
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
-            [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshСolliderMeshReferenceLookup;
+            [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshColliderMeshReferenceLookup;
 
             public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
 
@@ -225,13 +225,6 @@ namespace Entities.Systems.Pathdinding
                 if (physicsCollider.IsValid == false)
                     return;
 
-                Aabb colliderBounds = physicsCollider.Value.Value.CalculateAabb();
-                colliderBounds.Min = math.transform(ltw.Value, colliderBounds.Min);
-                colliderBounds.Max = math.transform(ltw.Value, colliderBounds.Max);
-                
-                if((Bounds.Overlaps(colliderBounds) || Bounds.Contains(colliderBounds.Center)) == false)
-                    return;
-                
                 CollisionFilter filter = physicsCollider.Value.Value.GetCollisionFilter();
 
                 if ((filter.BelongsTo & LayerMaskValue) == 0)
@@ -352,9 +345,9 @@ namespace Entities.Systems.Pathdinding
                         }
                         case ColliderType.Mesh:
                         {
-                            if (MeshСolliderMeshReferenceLookup.HasComponent(entity))
+                            if (MeshColliderMeshReferenceLookup.HasComponent(entity))
                             {
-                                MeshColliderMeshReference meshColliderMeshReference = MeshСolliderMeshReferenceLookup[entity];
+                                MeshColliderMeshReference meshColliderMeshReference = MeshColliderMeshReferenceLookup[entity];
 
                                 source.Shape = NavMeshBuildSourceShape.Mesh;
                                 source.TransformMatrix = ltw.Value;
