@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Entities.Bakers;
 using Entities.Bakers.Pathfinding;
 using Entities.Components.Pathfinding;
 using Plugins.Extensions;
@@ -67,7 +66,7 @@ namespace Entities.Systems.Pathdinding
 
             if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + BakeInterval)
                 return;
-            
+
             BakeNavMeshes(_cts.Token).Forget();
         }
 
@@ -261,6 +260,18 @@ namespace Entities.Systems.Pathdinding
 
                 if ((filter.BelongsTo & LayerMaskValue) == 0)
                     return;
+
+                unsafe
+                {
+                    Collider* collider = physicsCollider.ColliderPtr;
+
+                    RigidTransform worldTransform = new RigidTransform(ltw.Rotation, ltw.Position);
+
+                    Aabb colliderAabb = collider->CalculateAabb(worldTransform);
+
+                    if (Bounds.Contains(colliderAabb) == false && Bounds.Overlaps(colliderAabb) == false)
+                        return;
+                }
 
                 BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
                 {
