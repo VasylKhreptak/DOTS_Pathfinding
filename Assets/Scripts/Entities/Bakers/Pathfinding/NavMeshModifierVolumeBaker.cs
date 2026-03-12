@@ -1,9 +1,9 @@
-﻿using Components;
+﻿using Entities.Components.Pathfinding;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine.AI;
 
-namespace Entities.Bakers
+namespace Entities.Bakers.Pathfinding
 {
     public class NavMeshModifierVolumeBaker : Baker<Unity.AI.Navigation.NavMeshModifierVolume>
     {

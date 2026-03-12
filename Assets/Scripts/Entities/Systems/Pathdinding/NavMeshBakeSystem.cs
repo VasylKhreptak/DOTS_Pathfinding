@@ -2,9 +2,9 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using Components;
 using Cysharp.Threading.Tasks;
 using Entities.Bakers;
+using Entities.Bakers.Pathfinding;
 using Entities.Components.Pathfinding;
 using Plugins.Extensions;
 using Unity.AI.Navigation;
@@ -22,8 +22,8 @@ using BoxCollider = Unity.Physics.BoxCollider;
 using CapsuleCollider = Unity.Physics.CapsuleCollider;
 using Collider = Unity.Physics.Collider;
 using Debug = UnityEngine.Debug;
-using NavMeshModifier = Entities.Bakers.NavMeshModifier;
-using NavMeshModifierVolume = Entities.Bakers.NavMeshModifierVolume;
+using NavMeshModifier = Entities.Bakers.Pathfinding.NavMeshModifier;
+using NavMeshModifierVolume = Entities.Bakers.Pathfinding.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
 
 namespace Entities.Systems.Pathdinding
@@ -32,7 +32,7 @@ namespace Entities.Systems.Pathdinding
     public partial class NavMeshBakeSystem : SystemBase
     {
         private const float BakeInterval = 2f;
-        private const float Range = 500f;
+        private const float Range = 100f;
         private const int DefaultSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 
@@ -67,7 +67,7 @@ namespace Entities.Systems.Pathdinding
 
             if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + BakeInterval)
                 return;
-
+            
             BakeNavMeshes(_cts.Token).Forget();
         }
 

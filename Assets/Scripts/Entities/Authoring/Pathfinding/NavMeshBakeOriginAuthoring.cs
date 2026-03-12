@@ -1,7 +1,7 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
-namespace Authoring
+namespace Entities.Authoring.Pathfinding
 {
     public class NavMeshBakeOriginAuthoring : MonoBehaviour
     {

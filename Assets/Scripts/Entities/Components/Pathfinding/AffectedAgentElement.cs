@@ -1,6 +1,6 @@
 ﻿using Unity.Entities;
 
-namespace Components
+namespace Entities.Components.Pathfinding
 {
     [InternalBufferCapacity(32)]
     public struct AffectedAgentElement : IBufferElementData

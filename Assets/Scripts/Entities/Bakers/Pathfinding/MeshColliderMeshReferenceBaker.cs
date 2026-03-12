@@ -1,7 +1,7 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
-namespace Entities.Bakers
+namespace Entities.Bakers.Pathfinding
 {
     public class MeshColliderMeshReferenceBaker : Baker<MeshCollider>
     {
