@@ -453,7 +453,7 @@ namespace Entities.Systems.Pathdinding
                 if (((1 << renderFilterSettings.Layer) & (uint)LayerMaskValue) == 0)
                     return;
 
-                if (Bounds.Contains(worldRenderBounds.Value) == false && Overlaps(Bounds, worldRenderBounds.Value) == false)
+                if (Bounds.Contains(worldRenderBounds.Value) == false && Bounds.Overlaps(worldRenderBounds.Value) == false)
                     return;
 
                 BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
@@ -500,16 +500,6 @@ namespace Entities.Systems.Pathdinding
 
                 Sources.AddNoResize(source);
             }
-
-            private bool Overlaps(AABB a, AABB b)
-            {
-                return a.Center.x - a.Extents.x < b.Center.x + b.Extents.x &&
-                       a.Center.x + a.Extents.x > b.Center.x - b.Extents.x &&
-                       a.Center.y - a.Extents.y < b.Center.y + b.Extents.y &&
-                       a.Center.y + a.Extents.y > b.Center.y - b.Extents.y &&
-                       a.Center.z - a.Extents.z < b.Center.z + b.Extents.z &&
-                       a.Center.z + a.Extents.z > b.Center.z - b.Extents.z;
-            }
         }
 
         [BurstCompile]
@@ -523,9 +513,9 @@ namespace Entities.Systems.Pathdinding
             public void Execute(ref LocalToWorld ltw, ref NavMeshModifierVolume navMeshModifierVolume, DynamicBuffer<AffectedAgentElement> affectedAgents)
             {
                 AABB localBounds = new AABB { Center = navMeshModifierVolume.Center, Extents = navMeshModifierVolume.Size / 2f };
-                AABB worldBounds = ToWorldBounds(localBounds, ltw.Value);
+                AABB worldBounds = localBounds.ToWorld(ltw.Value);
 
-                if (Bounds.Contains(worldBounds) == false && Overlaps(Bounds, worldBounds) == false)
+                if (Bounds.Contains(worldBounds) == false && Bounds.Overlaps(worldBounds) == false)
                     return;
 
                 bool containsTargetAgent = false;
@@ -554,27 +544,6 @@ namespace Entities.Systems.Pathdinding
                 };
 
                 Sources.AddNoResize(source);
-            }
-
-            private bool Overlaps(AABB a, AABB b)
-            {
-                return a.Center.x - a.Extents.x < b.Center.x + b.Extents.x &&
-                       a.Center.x + a.Extents.x > b.Center.x - b.Extents.x &&
-                       a.Center.y - a.Extents.y < b.Center.y + b.Extents.y &&
-                       a.Center.y + a.Extents.y > b.Center.y - b.Extents.y &&
-                       a.Center.z - a.Extents.z < b.Center.z + b.Extents.z &&
-                       a.Center.z + a.Extents.z > b.Center.z - b.Extents.z;
-            }
-
-            private AABB ToWorldBounds(AABB localBounds, float4x4 localToWorld)
-            {
-                float3 worldCenter = math.mul(localToWorld, new float4(localBounds.Center, 1)).xyz;
-
-                float3 worldExtents = math.abs(localToWorld.c0.xyz) * localBounds.Extents.x +
-                                      math.abs(localToWorld.c1.xyz) * localBounds.Extents.y +
-                                      math.abs(localToWorld.c2.xyz) * localBounds.Extents.z;
-
-                return new AABB { Center = worldCenter, Extents = worldExtents };
             }
         }
     }
