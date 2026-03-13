@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Entities.Authoring.Pathfinding;
 using Entities.Bakers.Pathfinding;
 using Entities.Components.Pathfinding;
 using Plugins.Extensions;
@@ -56,6 +57,8 @@ namespace Entities.Systems.Pathdinding
             _parentLookup = GetComponentLookup<Parent>(true);
             _affectedAgentBufferLookup = GetBufferLookup<AffectedAgentElement>(true);
             _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
+
+            RequireForUpdate<NavMeshBakeCenterTag>();
         }
 
         protected override void OnUpdate()
@@ -82,7 +85,10 @@ namespace Entities.Systems.Pathdinding
         {
             _isBaking = true;
 
-            Bounds bounds = new Bounds(Vector3.zero, Vector3.one * Range * 2f);
+            Entity bakeCenterEntity = SystemAPI.GetSingletonEntity<NavMeshBakeCenterTag>();
+            LocalToWorld localToWorld = EntityManager.GetComponentData<LocalToWorld>(bakeCenterEntity);
+
+            Bounds bounds = new Bounds(localToWorld.Position, Vector3.one * Range * 2f);
 
             AssignNavMeshData();
 
