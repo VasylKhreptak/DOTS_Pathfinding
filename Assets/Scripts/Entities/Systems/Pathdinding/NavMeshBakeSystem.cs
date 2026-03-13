@@ -99,9 +99,9 @@ namespace Entities.Systems.Pathdinding
                 foreach (NavMeshBuildSource navMeshBuildSource in _sourcesBuffer)
                 {
                     Vector3 center = navMeshBuildSource.transform.GetPosition();
-                    Vector3 up = new Vector3(navMeshBuildSource.transform.m01, navMeshBuildSource.transform.m11, navMeshBuildSource.transform.m21);
-                    Vector3 right = new Vector3(navMeshBuildSource.transform.m00, navMeshBuildSource.transform.m10, navMeshBuildSource.transform.m20);
-                    Vector3 forward = new Vector3(navMeshBuildSource.transform.m02, navMeshBuildSource.transform.m12, navMeshBuildSource.transform.m22);
+                    Vector3 up = navMeshBuildSource.transform.GetUp();
+                    Vector3 right = navMeshBuildSource.transform.GetRight();
+                    Vector3 forward = navMeshBuildSource.transform.GetForward();
                     Vector3 size = navMeshBuildSource.size;
                     Color color = Color.green;
 
