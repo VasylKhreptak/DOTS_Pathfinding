@@ -5,7 +5,7 @@ using UnityEngine.AI;
 
 namespace Entities.Components.Pathfinding
 {
-    public struct BurstedNavMeshBuildSource
+    public struct UnmanagedNavMeshBuildSource
     {
         public float4x4 TransformMatrix;
         public float3 Size;
@@ -14,7 +14,7 @@ namespace Entities.Components.Pathfinding
         public UnityObjectRef<Mesh> MeshReference;
         public bool GenerateLinks;
 
-        public static implicit operator NavMeshBuildSource(BurstedNavMeshBuildSource source)
+        public static implicit operator NavMeshBuildSource(UnmanagedNavMeshBuildSource source)
         {
             return new NavMeshBuildSource
             {
@@ -27,9 +27,9 @@ namespace Entities.Components.Pathfinding
             };
         }
 
-        public static implicit operator BurstedNavMeshBuildSource(NavMeshBuildSource source)
+        public static implicit operator UnmanagedNavMeshBuildSource(NavMeshBuildSource source)
         {
-            return new BurstedNavMeshBuildSource
+            return new UnmanagedNavMeshBuildSource
             {
                 TransformMatrix = source.transform,
                 Size = source.size,

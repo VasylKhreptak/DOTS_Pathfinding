@@ -37,7 +37,7 @@ namespace Entities.Systems.Pathdinding
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
-        private NativeList<BurstedNavMeshBuildSource> _sourcesNativeBuffer;
+        private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
 
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
@@ -51,7 +51,7 @@ namespace Entities.Systems.Pathdinding
 
         protected override void OnCreate()
         {
-            _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
+            _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
@@ -191,14 +191,14 @@ namespace Entities.Systems.Pathdinding
 
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
             {
-                BurstedNavMeshBuildSource burstedSource = _sourcesNativeBuffer[i];
+                UnmanagedNavMeshBuildSource unmanagedSource = _sourcesNativeBuffer[i];
 
-                source.transform = burstedSource.TransformMatrix;
-                source.size = burstedSource.Size;
-                source.shape = burstedSource.Shape;
-                source.area = burstedSource.Area;
-                source.sourceObject = burstedSource.MeshReference.Value;
-                source.generateLinks = burstedSource.GenerateLinks;
+                source.transform = unmanagedSource.TransformMatrix;
+                source.size = unmanagedSource.Size;
+                source.shape = unmanagedSource.Shape;
+                source.area = unmanagedSource.Area;
+                source.sourceObject = unmanagedSource.MeshReference.Value;
+                source.generateLinks = unmanagedSource.GenerateLinks;
 
                 sources.Add(source);
 
@@ -244,7 +244,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
             [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshColliderMeshReferenceLookup;
 
-            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(ref LocalToWorld ltw, ref PhysicsCollider physicsCollider, Entity entity)
             {
@@ -268,7 +268,7 @@ namespace Entities.Systems.Pathdinding
                         return;
                 }
 
-                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
+                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource
                 {
                     Area = DefaultArea,
                     GenerateLinks = GenerateLinks
@@ -416,7 +416,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public ComponentLookup<Parent> ParentLookup;
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
 
-            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(ref LocalToWorld ltw, ref MeshRendererMeshReference meshRendererMeshReference, ref WorldRenderBounds worldRenderBounds,
                 RenderFilterSettings renderFilterSettings, Entity entity)
@@ -427,7 +427,7 @@ namespace Entities.Systems.Pathdinding
                 if (Bounds.Contains(worldRenderBounds.Value) == false && Bounds.Overlaps(worldRenderBounds.Value) == false)
                     return;
 
-                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
+                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource
                 {
                     Area = DefaultArea,
                     GenerateLinks = GenerateLinks,
@@ -479,7 +479,7 @@ namespace Entities.Systems.Pathdinding
             public AABB Bounds;
             public int AgentID;
 
-            public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
+            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(ref LocalToWorld ltw, ref NavMeshModifierVolume navMeshModifierVolume, DynamicBuffer<AffectedAgentElement> affectedAgents)
             {
@@ -506,7 +506,7 @@ namespace Entities.Systems.Pathdinding
                 float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
                 transform = math.mul(transform, float4x4.Translate(navMeshModifierVolume.Center * ltw.Value.Scale()));
 
-                BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
+                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource
                 {
                     Area = navMeshModifierVolume.AreaType,
                     Shape = NavMeshBuildSourceShape.ModifierBox,
