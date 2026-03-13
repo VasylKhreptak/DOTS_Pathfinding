@@ -32,7 +32,7 @@ namespace Entities.Systems.Pathdinding
     {
         private const float BakeInterval = 2f;
         private const float Range = 100f;
-        private const int DefaultSourcesBufferSize = 1024 * 2;
+        private const int InitialSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
@@ -51,7 +51,7 @@ namespace Entities.Systems.Pathdinding
 
         protected override void OnCreate()
         {
-            _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(DefaultSourcesBufferSize, Allocator.Persistent);
+            _sourcesNativeBuffer = new NativeList<BurstedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
