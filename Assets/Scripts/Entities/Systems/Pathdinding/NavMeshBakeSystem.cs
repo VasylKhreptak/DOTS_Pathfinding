@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -21,7 +20,6 @@ using UnityEngine.AI;
 using BoxCollider = Unity.Physics.BoxCollider;
 using CapsuleCollider = Unity.Physics.CapsuleCollider;
 using Collider = Unity.Physics.Collider;
-using Debug = UnityEngine.Debug;
 using NavMeshModifier = Entities.Bakers.Pathfinding.NavMeshModifier;
 using NavMeshModifierVolume = Entities.Bakers.Pathfinding.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
@@ -79,8 +77,6 @@ namespace Entities.Systems.Pathdinding
 
         private async UniTask BakeNavMeshes(CancellationToken token)
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
             _isBaking = true;
 
             Bounds bounds = new Bounds(Vector3.zero, Vector3.one * Range * 2f);
@@ -91,48 +87,14 @@ namespace Entities.Systems.Pathdinding
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
 
-                Stopwatch collectSourceStopwatch = Stopwatch.StartNew();
-
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
-
-                foreach (NavMeshBuildSource navMeshBuildSource in _sourcesBuffer)
-                {
-                    Vector3 center = navMeshBuildSource.transform.GetPosition();
-                    Vector3 up = navMeshBuildSource.transform.GetUp();
-                    Vector3 right = navMeshBuildSource.transform.GetRight();
-                    Vector3 forward = navMeshBuildSource.transform.GetForward();
-                    Vector3 size = navMeshBuildSource.size;
-                    Color color = Color.green;
-
-                    if (navMeshBuildSource.sourceObject is Mesh)
-                    {
-                        color = Color.blue;
-                        size = navMeshBuildSource.transform.lossyScale;
-                    }
-
-                    if (navMeshBuildSource.shape == NavMeshBuildSourceShape.ModifierBox)
-                        color = Color.red;
-
-                    Debug.DrawLine(center - up * size.y / 2, center + up * size.y / 2, color, 2f);
-                    Debug.DrawLine(center - right * size.x / 2, center + right * size.x / 2, color, 2f);
-                    Debug.DrawLine(center - forward * size.z / 2, center + forward * size.z / 2, color, 2f);
-                }
-
-                collectSourceStopwatch.Stop();
-
-                Debug.LogError(
-                    $"Collect sources duration. Surface name: {navMeshSurface.name}, duration: {collectSourceStopwatch.ElapsedMilliseconds} ms, sources count: {_sourcesBuffer.Count}");
 
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
             }
 
             _isBaking = false;
             _lastCompletedBakeTime = (float)SystemAPI.Time.ElapsedTime;
-
-            stopwatch.Stop();
-
-            Debug.LogError("Bake duration: " + stopwatch.ElapsedMilliseconds + " ms");
         }
 
         private void AssignNavMeshData()
