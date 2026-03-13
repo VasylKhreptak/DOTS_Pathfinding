@@ -60,6 +60,9 @@ namespace Entities.Systems.Pathdinding
 
         protected override void OnUpdate()
         {
+            if (NavMeshSurface.activeSurfaces.Count == 0)
+                return;
+
             if (_isBaking)
                 return;
 
