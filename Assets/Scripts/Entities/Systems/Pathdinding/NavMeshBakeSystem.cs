@@ -14,6 +14,7 @@ using Unity.Entities.Graphics;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Physics;
+using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.AI;
@@ -94,6 +95,29 @@ namespace Entities.Systems.Pathdinding
 
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
+
+                foreach (NavMeshBuildSource navMeshBuildSource in _sourcesBuffer)
+                {
+                    Vector3 center = navMeshBuildSource.transform.GetPosition();
+                    Vector3 up = new Vector3(navMeshBuildSource.transform.m01, navMeshBuildSource.transform.m11, navMeshBuildSource.transform.m21);
+                    Vector3 right = new Vector3(navMeshBuildSource.transform.m00, navMeshBuildSource.transform.m10, navMeshBuildSource.transform.m20);
+                    Vector3 forward = new Vector3(navMeshBuildSource.transform.m02, navMeshBuildSource.transform.m12, navMeshBuildSource.transform.m22);
+                    Vector3 size = navMeshBuildSource.size;
+                    Color color = Color.green;
+
+                    if (navMeshBuildSource.sourceObject is Mesh)
+                    {
+                        color = Color.blue;
+                        size = navMeshBuildSource.transform.lossyScale;
+                    }
+
+                    if (navMeshBuildSource.shape == NavMeshBuildSourceShape.ModifierBox)
+                        color = Color.red;
+
+                    Debug.DrawLine(center - up * size.y / 2, center + up * size.y / 2, color, 2f);
+                    Debug.DrawLine(center - right * size.x / 2, center + right * size.x / 2, color, 2f);
+                    Debug.DrawLine(center - forward * size.z / 2, center + forward * size.z / 2, color, 2f);
+                }
 
                 collectSourceStopwatch.Stop();
 
@@ -423,10 +447,13 @@ namespace Entities.Systems.Pathdinding
 
             public NativeList<BurstedNavMeshBuildSource>.ParallelWriter Sources;
 
-            public void Execute(ref LocalToWorld ltw, ref MeshRendererMeshReference meshRendererMeshReference, RenderFilterSettings renderFilterSettings,
-                Entity entity)
+            public void Execute(ref LocalToWorld ltw, ref MeshRendererMeshReference meshRendererMeshReference, ref WorldRenderBounds worldRenderBounds,
+                RenderFilterSettings renderFilterSettings, Entity entity)
             {
                 if (((1 << renderFilterSettings.Layer) & (uint)LayerMaskValue) == 0)
+                    return;
+
+                if (Bounds.Contains(worldRenderBounds.Value) == false && Overlaps(Bounds, worldRenderBounds.Value) == false)
                     return;
 
                 BurstedNavMeshBuildSource source = new BurstedNavMeshBuildSource
@@ -473,6 +500,16 @@ namespace Entities.Systems.Pathdinding
 
                 Sources.AddNoResize(source);
             }
+
+            private bool Overlaps(AABB a, AABB b)
+            {
+                return a.Center.x - a.Extents.x < b.Center.x + b.Extents.x &&
+                       a.Center.x + a.Extents.x > b.Center.x - b.Extents.x &&
+                       a.Center.y - a.Extents.y < b.Center.y + b.Extents.y &&
+                       a.Center.y + a.Extents.y > b.Center.y - b.Extents.y &&
+                       a.Center.z - a.Extents.z < b.Center.z + b.Extents.z &&
+                       a.Center.z + a.Extents.z > b.Center.z - b.Extents.z;
+            }
         }
 
         [BurstCompile]
@@ -485,6 +522,12 @@ namespace Entities.Systems.Pathdinding
 
             public void Execute(ref LocalToWorld ltw, ref NavMeshModifierVolume navMeshModifierVolume, DynamicBuffer<AffectedAgentElement> affectedAgents)
             {
+                AABB localBounds = new AABB { Center = navMeshModifierVolume.Center, Extents = navMeshModifierVolume.Size / 2f };
+                AABB worldBounds = ToWorldBounds(localBounds, ltw.Value);
+
+                if (Bounds.Contains(worldBounds) == false && Overlaps(Bounds, worldBounds) == false)
+                    return;
+
                 bool containsTargetAgent = false;
 
                 foreach (AffectedAgentElement affectedAgentElement in affectedAgents)
@@ -511,6 +554,27 @@ namespace Entities.Systems.Pathdinding
                 };
 
                 Sources.AddNoResize(source);
+            }
+
+            private bool Overlaps(AABB a, AABB b)
+            {
+                return a.Center.x - a.Extents.x < b.Center.x + b.Extents.x &&
+                       a.Center.x + a.Extents.x > b.Center.x - b.Extents.x &&
+                       a.Center.y - a.Extents.y < b.Center.y + b.Extents.y &&
+                       a.Center.y + a.Extents.y > b.Center.y - b.Extents.y &&
+                       a.Center.z - a.Extents.z < b.Center.z + b.Extents.z &&
+                       a.Center.z + a.Extents.z > b.Center.z - b.Extents.z;
+            }
+
+            private AABB ToWorldBounds(AABB localBounds, float4x4 localToWorld)
+            {
+                float3 worldCenter = math.mul(localToWorld, new float4(localBounds.Center, 1)).xyz;
+
+                float3 worldExtents = math.abs(localToWorld.c0.xyz) * localBounds.Extents.x +
+                                      math.abs(localToWorld.c1.xyz) * localBounds.Extents.y +
+                                      math.abs(localToWorld.c2.xyz) * localBounds.Extents.z;
+
+                return new AABB { Center = worldCenter, Extents = worldExtents };
             }
         }
     }
