@@ -13,6 +13,7 @@ namespace Gameplay.Services.SystemsState
             world.GetExistingSystemManaged<EarlyUpdateSystemGroup>().Enabled = true;
             world.GetExistingSystemManaged<FixedUpdateSystemGroup>().Enabled = true;
             world.GetExistingSystemManaged<UpdateSystemGroup>().Enabled = true;
+            world.GetExistingSystemManaged<LateUpdateSystemGroup>().Enabled = true;
         }
 
         public void DisableSystems()
@@ -22,6 +23,7 @@ namespace Gameplay.Services.SystemsState
             world.GetExistingSystemManaged<EarlyUpdateSystemGroup>().Enabled = false;
             world.GetExistingSystemManaged<FixedUpdateSystemGroup>().Enabled = false;
             world.GetExistingSystemManaged<UpdateSystemGroup>().Enabled = false;
+            world.GetExistingSystemManaged<LateUpdateSystemGroup>().Enabled = false;
         }
     }
 }

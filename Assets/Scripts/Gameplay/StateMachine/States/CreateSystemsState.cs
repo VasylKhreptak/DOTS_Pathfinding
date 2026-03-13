@@ -40,6 +40,7 @@ namespace Gameplay.StateMachine.States
             CreateSystemManaged<EarlyUpdateSystemGroup, InitializationSystemGroup>().Enabled = false;
             CreateSystemManaged<FixedUpdateSystemGroup, FixedStepSimulationSystemGroup>().Enabled = false;
             CreateSystemManaged<UpdateSystemGroup, SimulationSystemGroup>().Enabled = false;
+            CreateSystemManaged<LateUpdateSystemGroup, LateSimulationSystemGroup>().Enabled = false;
         }
 
         private void CreateSystems()
@@ -47,6 +48,7 @@ namespace Gameplay.StateMachine.States
             CreateEarlyUpdateSystems();
             CreateFixedUpdateSystems();
             CreateUpdateSystems();
+            CreateLateUpdateSystems();
         }
 
         private void CreateEarlyUpdateSystems()
@@ -62,7 +64,6 @@ namespace Gameplay.StateMachine.States
         private void CreateUpdateSystems()
         {
             CreateSystemManaged<PrefabLibrarySystem, UpdateSystemGroup>();
-            CreateSystemManaged<NavMeshBakeSystem, UpdateSystemGroup>();
 
             CreateAudioSystems();
             CreateUISystems();
@@ -78,6 +79,11 @@ namespace Gameplay.StateMachine.States
         private void CreateUISystems()
         {
             //managed systems that updates UI inside world tick timing
+        }
+
+        private void CreateLateUpdateSystems()
+        {
+            CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
         }
 
         private void CreateSystem<T, TGroup>() where T : unmanaged, ISystem where TGroup : ComponentSystemGroup
