@@ -268,11 +268,8 @@ namespace Entities.Systems.Pathdinding
                         return;
                 }
 
-                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource
-                {
-                    Area = DefaultArea,
-                    GenerateLinks = GenerateLinks
-                };
+                int area = DefaultArea;
+                bool generateLinks = GenerateLinks;
 
                 if (EntityManagerExtensions.HasComponentInParent(entity, ref NavMeshModifierLookup, ref ParentLookup, out Entity componentEntity))
                 {
@@ -300,10 +297,10 @@ namespace Entities.Systems.Pathdinding
                             return;
 
                         if (navMeshModifier.OverrideArea)
-                            source.Area = navMeshModifier.Area;
+                            area = navMeshModifier.Area;
 
                         if (navMeshModifier.OverrideGenerateLinks)
-                            source.GenerateLinks = navMeshModifier.GenerateLinks;
+                            generateLinks = navMeshModifier.GenerateLinks;
                     }
                 }
 
@@ -326,12 +323,19 @@ namespace Entities.Systems.Pathdinding
 
                             transform = math.mul(transform, float4x4.Translate(centerOffset));
 
-                            source.Shape = NavMeshBuildSourceShape.Box;
-                            source.TransformMatrix = transform;
-                            source.Size = boxCollider.Size;
+                            UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                            {
+                                Area = area,
+                                GenerateLinks = generateLinks,
+                                Shape = NavMeshBuildSourceShape.Box,
+                                TransformMatrix = transform,
+                                Size = boxCollider.Size
+                            };
 
                             if (ltw.Value.HasNonUniformScale() == false)
                                 source.Size *= ltw.Value.Scale();
+
+                            Sources.AddNoResize(source);
 
                             break;
                         }
@@ -348,12 +352,19 @@ namespace Entities.Systems.Pathdinding
 
                             transform = math.mul(transform, float4x4.Translate(centerOffset));
 
-                            source.Shape = NavMeshBuildSourceShape.Sphere;
-                            source.TransformMatrix = transform;
-                            source.Size = new float3(sphereCollider.Radius * 2);
+                            UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                            {
+                                Area = area,
+                                GenerateLinks = generateLinks,
+                                Shape = NavMeshBuildSourceShape.Sphere,
+                                TransformMatrix = transform,
+                                Size = new float3(sphereCollider.Radius * 2)
+                            };
 
                             if (ltw.Value.HasNonUniformScale() == false)
                                 source.Size *= ltw.Value.Scale();
+
+                            Sources.AddNoResize(source);
 
                             break;
                         }
@@ -370,14 +381,22 @@ namespace Entities.Systems.Pathdinding
 
                             transform = math.mul(transform, float4x4.Translate(centerOffset));
 
-                            source.Shape = NavMeshBuildSourceShape.Capsule;
-                            source.TransformMatrix = transform;
                             float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
                             float width = capsuleCollider.Radius * 2;
-                            source.Size = new float3(width, height, width);
+
+                            UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                            {
+                                Area = area,
+                                GenerateLinks = generateLinks,
+                                Shape = NavMeshBuildSourceShape.Capsule,
+                                TransformMatrix = transform,
+                                Size = new float3(width, height, width)
+                            };
 
                             if (ltw.Value.HasNonUniformScale() == false)
                                 source.Size *= ltw.Value.Scale();
+
+                            Sources.AddNoResize(source);
 
                             break;
                         }
@@ -387,19 +406,110 @@ namespace Entities.Systems.Pathdinding
                             {
                                 MeshColliderMeshReference meshColliderMeshReference = MeshColliderMeshReferenceLookup[entity];
 
-                                source.Shape = NavMeshBuildSourceShape.Mesh;
-                                source.TransformMatrix = ltw.Value;
-                                source.MeshReference = meshColliderMeshReference.Value;
+                                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                                {
+                                    Area = area,
+                                    GenerateLinks = generateLinks,
+                                    Shape = NavMeshBuildSourceShape.Mesh,
+                                    TransformMatrix = ltw.Value,
+                                    MeshReference = meshColliderMeshReference.Value
+                                };
+
+                                Sources.AddNoResize(source);
                             }
 
                             break;
+                        }
+                        case ColliderType.Compound:
+                        {
+                            CompoundCollider* compound = (CompoundCollider*)collider;
+
+                            RigidTransform worldTransform = new RigidTransform(ltw.Rotation, ltw.Position);
+
+                            for (int i = 0; i < compound->NumChildren; i++)
+                            {
+                                ref CompoundCollider.Child child = ref compound->Children[i];
+
+                                Collider* childCollider = child.Collider;
+
+                                RigidTransform childWorld = math.mul(worldTransform, child.CompoundFromChild);
+
+                                float4x4 childMatrix = float4x4.TRS(childWorld.pos, childWorld.rot, new float3(1));
+
+                                UnmanagedNavMeshBuildSource childSource = new UnmanagedNavMeshBuildSource()
+                                {
+                                    Area = area,
+                                    GenerateLinks = generateLinks
+                                };
+
+                                switch (childCollider->Type)
+                                {
+                                    case ColliderType.Box:
+                                    {
+                                        BoxCollider* box = (BoxCollider*)childCollider;
+
+                                        childSource.Shape = NavMeshBuildSourceShape.Box;
+                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(box->Center));
+                                        childSource.Size = box->Size;
+
+                                        Sources.AddNoResize(childSource);
+                                        break;
+                                    }
+
+                                    case ColliderType.Sphere:
+                                    {
+                                        SphereCollider* sphere = (SphereCollider*)childCollider;
+
+                                        childSource.Shape = NavMeshBuildSourceShape.Sphere;
+                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(sphere->Center));
+                                        childSource.Size = new float3(sphere->Radius * 2);
+
+                                        Sources.AddNoResize(childSource);
+                                        break;
+                                    }
+
+                                    case ColliderType.Capsule:
+                                    {
+                                        CapsuleCollider* capsule = (CapsuleCollider*)childCollider;
+
+                                        float3 center = capsule->Geometry.GetCenter();
+
+                                        childSource.Shape = NavMeshBuildSourceShape.Capsule;
+                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(center));
+
+                                        float height = math.distance(capsule->Geometry.Vertex0, capsule->Geometry.Vertex1) + capsule->Radius * 2;
+                                        float width = capsule->Radius * 2;
+
+                                        childSource.Size = new float3(width, height, width);
+
+                                        Sources.AddNoResize(childSource);
+                                        break;
+                                    }
+
+                                    case ColliderType.Mesh:
+                                    {
+                                        if (MeshColliderMeshReferenceLookup.HasComponent(entity))
+                                        {
+                                            MeshColliderMeshReference meshRef = MeshColliderMeshReferenceLookup[entity];
+
+                                            childSource.Shape = NavMeshBuildSourceShape.Mesh;
+                                            childSource.TransformMatrix = childMatrix;
+                                            childSource.MeshReference = meshRef.Value;
+
+                                            Sources.AddNoResize(childSource);
+                                        }
+
+                                        break;
+                                    }
+                                }
+                            }
+
+                            return;
                         }
                         default:
                             return;
                     }
                 }
-
-                Sources.AddNoResize(source);
             }
         }
 
