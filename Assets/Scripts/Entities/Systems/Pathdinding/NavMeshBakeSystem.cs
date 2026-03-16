@@ -281,7 +281,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public BufferLookup<PhysicsColliderKeyEntityPair> ColliderKeyEntityPairBufferLookup;
             [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshColliderMeshReferenceLookup;
 
-            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
+            [WriteOnly] public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(in LocalToWorld ltw, in PhysicsCollider physicsCollider, in Entity entity)
             {
@@ -576,7 +576,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public ComponentLookup<Parent> ParentLookup;
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
 
-            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
+            [WriteOnly] public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(in LocalToWorld ltw, in MeshRendererMeshReference meshRendererMeshReference, in WorldRenderBounds worldRenderBounds,
                 in RenderFilterSettings renderFilterSettings, in Entity entity)
@@ -639,7 +639,7 @@ namespace Entities.Systems.Pathdinding
             public AABB Bounds;
             public int AgentID;
 
-            public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
+            [WriteOnly] public NativeList<UnmanagedNavMeshBuildSource>.ParallelWriter Sources;
 
             public void Execute(in LocalToWorld ltw, in NavMeshModifierVolume navMeshModifierVolume, in DynamicBuffer<AffectedAgentElement> affectedAgents)
             {
