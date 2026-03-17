@@ -41,7 +41,7 @@ namespace Entities.Systems.Pathdinding
 
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
-        private ComponentLookup<LocalToWorld> _localToWorldLookup;
+        private ComponentLookup<LocalTransform> _localTransformLookup;
         private BufferLookup<AffectedAgentElement> _affectedAgentBufferLookup;
         private BufferLookup<PhysicsColliderKeyEntityPair> _colliderKeyEntityPairBufferLookup;
         private ComponentLookup<MeshColliderMeshReference> _meshColliderMeshReferenceLookup;
@@ -57,7 +57,7 @@ namespace Entities.Systems.Pathdinding
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
-            _localToWorldLookup = GetComponentLookup<LocalToWorld>(true);
+            _localTransformLookup = GetComponentLookup<LocalTransform>(true);
             _affectedAgentBufferLookup = GetBufferLookup<AffectedAgentElement>(true);
             _colliderKeyEntityPairBufferLookup = GetBufferLookup<PhysicsColliderKeyEntityPair>(true);
             _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
@@ -160,7 +160,7 @@ namespace Entities.Systems.Pathdinding
 
             _navMeshModifierLookup.Update(this);
             _parentLookup.Update(this);
-            _localToWorldLookup.Update(this);
+            _localTransformLookup.Update(this);
             _affectedAgentBufferLookup.Update(this);
             _colliderKeyEntityPairBufferLookup.Update(this);
             _meshColliderMeshReferenceLookup.Update(this);
@@ -178,7 +178,7 @@ namespace Entities.Systems.Pathdinding
                     DefaultArea = defaultArea,
                     NavMeshModifierLookup = _navMeshModifierLookup,
                     ParentLookup = _parentLookup,
-                    LocalToWorldLookup = _localToWorldLookup,
+                    LocalTransformLookup = _localTransformLookup,
                     AffectedAgentBufferLookup = _affectedAgentBufferLookup,
                     ColliderKeyEntityPairBufferLookup = _colliderKeyEntityPairBufferLookup,
                     MeshColliderMeshReferenceLookup = _meshColliderMeshReferenceLookup,
@@ -276,7 +276,7 @@ namespace Entities.Systems.Pathdinding
 
             [ReadOnly] public ComponentLookup<NavMeshModifier> NavMeshModifierLookup;
             [ReadOnly] public ComponentLookup<Parent> ParentLookup;
-            [ReadOnly] public ComponentLookup<LocalToWorld> LocalToWorldLookup;
+            [ReadOnly] public ComponentLookup<LocalTransform> LocalTransformLookup;
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
             [ReadOnly] public BufferLookup<PhysicsColliderKeyEntityPair> ColliderKeyEntityPairBufferLookup;
             [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshColliderMeshReferenceLookup;
@@ -353,25 +353,24 @@ namespace Entities.Systems.Pathdinding
                     {
                         BoxCollider boxCollider = *(BoxCollider*)colliderPtr;
 
-                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
                         float3 centerOffset = boxCollider.Center;
 
-                        if (matrix.HasNonUniformScale() == false)
-                            centerOffset *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            centerOffset /= matrix.GetScale();
 
-                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
 
                         UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                         {
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Box,
-                            TransformMatrix = transform,
+                            TransformMatrix = matrix,
                             Size = boxCollider.Size
                         };
 
-                        if (matrix.HasNonUniformScale() == false)
-                            source.Size *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
 
@@ -381,25 +380,24 @@ namespace Entities.Systems.Pathdinding
                     {
                         SphereCollider sphereCollider = *(SphereCollider*)colliderPtr;
 
-                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
                         float3 centerOffset = sphereCollider.Center;
 
-                        if (matrix.HasNonUniformScale() == false)
-                            centerOffset *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            centerOffset /= matrix.GetScale();
 
-                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
 
                         UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                         {
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Sphere,
-                            TransformMatrix = transform,
+                            TransformMatrix = matrix,
                             Size = new float3(sphereCollider.Radius * 2)
                         };
 
-                        if (matrix.HasNonUniformScale() == false)
-                            source.Size *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
 
@@ -409,13 +407,12 @@ namespace Entities.Systems.Pathdinding
                     {
                         CapsuleCollider capsuleCollider = *(CapsuleCollider*)colliderPtr;
 
-                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
                         float3 centerOffset = capsuleCollider.Geometry.GetCenter();
 
-                        if (matrix.HasNonUniformScale() == false)
-                            centerOffset *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            centerOffset /= matrix.GetScale();
 
-                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
 
                         float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
                         float width = capsuleCollider.Radius * 2;
@@ -425,12 +422,12 @@ namespace Entities.Systems.Pathdinding
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Capsule,
-                            TransformMatrix = transform,
+                            TransformMatrix = matrix,
                             Size = new float3(width, height, width)
                         };
 
-                        if (matrix.HasNonUniformScale() == false)
-                            source.Size *= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                            source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
 
@@ -466,12 +463,13 @@ namespace Entities.Systems.Pathdinding
                         {
                             ColliderKey colliderKey = colliderKeyEntityPairs[i].Key;
                             Entity childEntity = colliderKeyEntityPairs[i].Entity;
-                            LocalToWorld localToWorld = LocalToWorldLookup[childEntity];
+                            LocalTransform localTransform = LocalTransformLookup[childEntity];
 
                             compoundCollider->GetChild(ref colliderKey, out ChildCollider childCollider);
                             Collider* childColliderPtr = childCollider.Collider;
 
-                            TryAddColliderSource(childColliderPtr, matrix, childEntity, true);
+                            TryAddColliderSource(childColliderPtr, math.mul(matrix, float4x4.TRS(localTransform.Position, localTransform.Rotation, 1f)), childEntity,
+                                true);
                         }
 
                         break;
