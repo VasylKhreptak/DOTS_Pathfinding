@@ -42,6 +42,7 @@ namespace Entities.Systems.Pathdinding
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
         private ComponentLookup<LocalTransform> _localTransformLookup;
+        private ComponentLookup<LocalToWorld> _localToWorldLookup;
         private BufferLookup<AffectedAgentElement> _affectedAgentBufferLookup;
         private BufferLookup<PhysicsColliderKeyEntityPair> _colliderKeyEntityPairBufferLookup;
         private ComponentLookup<MeshColliderMeshReference> _meshColliderMeshReferenceLookup;
@@ -58,6 +59,7 @@ namespace Entities.Systems.Pathdinding
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
             _localTransformLookup = GetComponentLookup<LocalTransform>(true);
+            _localToWorldLookup = GetComponentLookup<LocalToWorld>(true);
             _affectedAgentBufferLookup = GetBufferLookup<AffectedAgentElement>(true);
             _colliderKeyEntityPairBufferLookup = GetBufferLookup<PhysicsColliderKeyEntityPair>(true);
             _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
@@ -161,6 +163,7 @@ namespace Entities.Systems.Pathdinding
             _navMeshModifierLookup.Update(this);
             _parentLookup.Update(this);
             _localTransformLookup.Update(this);
+            _localToWorldLookup.Update(this);
             _affectedAgentBufferLookup.Update(this);
             _colliderKeyEntityPairBufferLookup.Update(this);
             _meshColliderMeshReferenceLookup.Update(this);
@@ -179,6 +182,7 @@ namespace Entities.Systems.Pathdinding
                     NavMeshModifierLookup = _navMeshModifierLookup,
                     ParentLookup = _parentLookup,
                     LocalTransformLookup = _localTransformLookup,
+                    LocalToWorldLookup = _localToWorldLookup,
                     AffectedAgentBufferLookup = _affectedAgentBufferLookup,
                     ColliderKeyEntityPairBufferLookup = _colliderKeyEntityPairBufferLookup,
                     MeshColliderMeshReferenceLookup = _meshColliderMeshReferenceLookup,
@@ -277,6 +281,7 @@ namespace Entities.Systems.Pathdinding
             [ReadOnly] public ComponentLookup<NavMeshModifier> NavMeshModifierLookup;
             [ReadOnly] public ComponentLookup<Parent> ParentLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> LocalTransformLookup;
+            [ReadOnly] public ComponentLookup<LocalToWorld> LocalToWorldLookup;
             [ReadOnly] public BufferLookup<AffectedAgentElement> AffectedAgentBufferLookup;
             [ReadOnly] public BufferLookup<PhysicsColliderKeyEntityPair> ColliderKeyEntityPairBufferLookup;
             [ReadOnly] public ComponentLookup<MeshColliderMeshReference> MeshColliderMeshReferenceLookup;
@@ -294,7 +299,7 @@ namespace Entities.Systems.Pathdinding
                 }
             }
 
-            private unsafe void TryAddColliderSource(Collider* colliderPtr, float4x4 matrix, Entity entity, bool isChildOfCompoundCollider = false)
+            private unsafe void TryAddColliderSource(Collider* colliderPtr, float4x4 matrix, Entity entity)
             {
                 int area = DefaultArea;
                 bool generateLinks = GenerateLinks;
@@ -355,7 +360,7 @@ namespace Entities.Systems.Pathdinding
 
                         float3 centerOffset = boxCollider.Center;
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             centerOffset /= matrix.GetScale();
 
                         matrix = math.mul(matrix, float4x4.Translate(centerOffset));
@@ -369,7 +374,7 @@ namespace Entities.Systems.Pathdinding
                             Size = boxCollider.Size
                         };
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
@@ -382,7 +387,7 @@ namespace Entities.Systems.Pathdinding
 
                         float3 centerOffset = sphereCollider.Center;
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             centerOffset /= matrix.GetScale();
 
                         matrix = math.mul(matrix, float4x4.Translate(centerOffset));
@@ -396,7 +401,7 @@ namespace Entities.Systems.Pathdinding
                             Size = new float3(sphereCollider.Radius * 2)
                         };
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
@@ -409,7 +414,7 @@ namespace Entities.Systems.Pathdinding
 
                         float3 centerOffset = capsuleCollider.Geometry.GetCenter();
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             centerOffset /= matrix.GetScale();
 
                         matrix = math.mul(matrix, float4x4.Translate(centerOffset));
@@ -426,7 +431,7 @@ namespace Entities.Systems.Pathdinding
                             Size = new float3(width, height, width)
                         };
 
-                        if (matrix.HasNonUniformScale() && isChildOfCompoundCollider == false)
+                        if (matrix.HasNonUniformScale())
                             source.Size /= matrix.GetScale();
 
                         Sources.AddNoResize(source);
@@ -463,13 +468,20 @@ namespace Entities.Systems.Pathdinding
                         {
                             ColliderKey colliderKey = colliderKeyEntityPairs[i].Key;
                             Entity childEntity = colliderKeyEntityPairs[i].Entity;
-                            LocalTransform localTransform = LocalTransformLookup[childEntity];
 
                             compoundCollider->GetChild(ref colliderKey, out ChildCollider childCollider);
                             Collider* childColliderPtr = childCollider.Collider;
 
-                            TryAddColliderSource(childColliderPtr, math.mul(matrix, float4x4.TRS(localTransform.Position, localTransform.Rotation, 1f)), childEntity,
-                                true);
+                            if (childColliderPtr->Type == ColliderType.Mesh)
+                            {
+                                LocalToWorld localToWorld = LocalToWorldLookup[childEntity];
+                                TryAddColliderSource(childColliderPtr, localToWorld.Value, childEntity);
+                            }
+                            else
+                            {
+                                LocalTransform localTransform = LocalTransformLookup[childEntity];
+                                TryAddColliderSource(childColliderPtr, math.mul(matrix, float4x4.TRS(localTransform.Position, localTransform.Rotation, 1f)), childEntity);
+                            }
                         }
 
                         break;
