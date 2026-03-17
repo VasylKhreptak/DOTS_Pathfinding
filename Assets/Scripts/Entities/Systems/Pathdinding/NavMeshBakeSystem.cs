@@ -288,27 +288,30 @@ namespace Entities.Systems.Pathdinding
                 if (physicsCollider.IsValid == false)
                     return;
 
+                unsafe
+                {
+                    TryAddColliderSource(physicsCollider.ColliderPtr, ltw.Value, entity);
+                }
+            }
+
+            private unsafe void TryAddColliderSource(Collider* colliderPtr, float4x4 matrix, Entity entity, bool isChildOfCompoundCollider = false)
+            {
                 int area = DefaultArea;
                 bool generateLinks = GenerateLinks;
 
-                if (physicsCollider.Value.Value.Type != ColliderType.Compound)
+                if (colliderPtr->Type != ColliderType.Compound)
                 {
-                    CollisionFilter filter = physicsCollider.Value.Value.GetCollisionFilter();
+                    CollisionFilter filter = colliderPtr->GetCollisionFilter();
 
                     if ((filter.BelongsTo & LayerMaskValue) == 0)
                         return;
 
-                    unsafe
-                    {
-                        Collider* collider = physicsCollider.ColliderPtr;
+                    RigidTransform worldTransform = new RigidTransform(matrix.GetRotation(), matrix.GetPosition());
 
-                        RigidTransform worldTransform = new RigidTransform(ltw.Rotation, ltw.Position);
+                    Aabb colliderAabb = colliderPtr->CalculateAabb(worldTransform);
 
-                        Aabb colliderAabb = collider->CalculateAabb(worldTransform);
-
-                        if (Bounds.Contains(colliderAabb) == false && Bounds.Overlaps(colliderAabb) == false)
-                            return;
-                    }
+                    if (Bounds.Contains(colliderAabb) == false && Bounds.Overlaps(colliderAabb) == false)
+                        return;
 
                     if (EntityManagerExtensions.HasComponentInParent(entity, ref NavMeshModifierLookup, ref ParentLookup, out Entity componentEntity))
                     {
@@ -344,220 +347,134 @@ namespace Entities.Systems.Pathdinding
                     }
                 }
 
-                unsafe
+                switch (colliderPtr->Type)
                 {
-                    Collider* collider = physicsCollider.ColliderPtr;
-
-                    switch (collider->Type)
+                    case ColliderType.Box:
                     {
-                        case ColliderType.Box:
+                        BoxCollider boxCollider = *(BoxCollider*)colliderPtr;
+
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
+                        float3 centerOffset = boxCollider.Center;
+
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= matrix.GetScale();
+
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                        UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                         {
-                            BoxCollider boxCollider = *(BoxCollider*)collider;
+                            Area = area,
+                            GenerateLinks = generateLinks,
+                            Shape = NavMeshBuildSourceShape.Box,
+                            TransformMatrix = transform,
+                            Size = boxCollider.Size
+                        };
 
-                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= matrix.GetScale();
 
-                            float3 centerOffset = boxCollider.Center;
+                        Sources.AddNoResize(source);
 
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                centerOffset *= ltw.Value.Scale();
+                        break;
+                    }
+                    case ColliderType.Sphere:
+                    {
+                        SphereCollider sphereCollider = *(SphereCollider*)colliderPtr;
 
-                            transform = math.mul(transform, float4x4.Translate(centerOffset));
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
+                        float3 centerOffset = sphereCollider.Center;
+
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= matrix.GetScale();
+
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                        UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                        {
+                            Area = area,
+                            GenerateLinks = generateLinks,
+                            Shape = NavMeshBuildSourceShape.Sphere,
+                            TransformMatrix = transform,
+                            Size = new float3(sphereCollider.Radius * 2)
+                        };
+
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= matrix.GetScale();
+
+                        Sources.AddNoResize(source);
+
+                        break;
+                    }
+                    case ColliderType.Capsule:
+                    {
+                        CapsuleCollider capsuleCollider = *(CapsuleCollider*)colliderPtr;
+
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), new float3(1));
+                        float3 centerOffset = capsuleCollider.Geometry.GetCenter();
+
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= matrix.GetScale();
+
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
+
+                        float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
+                        float width = capsuleCollider.Radius * 2;
+
+                        UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
+                        {
+                            Area = area,
+                            GenerateLinks = generateLinks,
+                            Shape = NavMeshBuildSourceShape.Capsule,
+                            TransformMatrix = transform,
+                            Size = new float3(width, height, width)
+                        };
+
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= matrix.GetScale();
+
+                        Sources.AddNoResize(source);
+
+                        break;
+                    }
+                    case ColliderType.Mesh:
+                    {
+                        if (MeshColliderMeshReferenceLookup.HasComponent(entity))
+                        {
+                            MeshColliderMeshReference meshColliderMeshReference = MeshColliderMeshReferenceLookup[entity];
 
                             UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                             {
                                 Area = area,
                                 GenerateLinks = generateLinks,
-                                Shape = NavMeshBuildSourceShape.Box,
-                                TransformMatrix = transform,
-                                Size = boxCollider.Size
+                                Shape = NavMeshBuildSourceShape.Mesh,
+                                TransformMatrix = matrix,
+                                MeshReference = meshColliderMeshReference.Value
                             };
 
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                source.Size *= ltw.Value.Scale();
-
                             Sources.AddNoResize(source);
-
-                            break;
                         }
-                        case ColliderType.Sphere:
+
+                        break;
+                    }
+                    case ColliderType.Compound:
+                    {
+                        CompoundCollider* compoundCollider = (CompoundCollider*)colliderPtr;
+
+                        DynamicBuffer<PhysicsColliderKeyEntityPair> colliderKeyEntityPairs = ColliderKeyEntityPairBufferLookup[entity];
+
+                        for (int i = 0; i < colliderKeyEntityPairs.Length; i++)
                         {
-                            SphereCollider sphereCollider = *(SphereCollider*)collider;
+                            ColliderKey colliderKey = colliderKeyEntityPairs[i].Key;
+                            Entity childEntity = colliderKeyEntityPairs[i].Entity;
+                            LocalToWorld localToWorld = LocalToWorldLookup[childEntity];
 
-                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
+                            compoundCollider->GetChild(ref colliderKey, out ChildCollider childCollider);
+                            Collider* childColliderPtr = childCollider.Collider;
 
-                            float3 centerOffset = sphereCollider.Center;
-
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                centerOffset *= ltw.Value.Scale();
-
-                            transform = math.mul(transform, float4x4.Translate(centerOffset));
-
-                            UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
-                            {
-                                Area = area,
-                                GenerateLinks = generateLinks,
-                                Shape = NavMeshBuildSourceShape.Sphere,
-                                TransformMatrix = transform,
-                                Size = new float3(sphereCollider.Radius * 2)
-                            };
-
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                source.Size *= ltw.Value.Scale();
-
-                            Sources.AddNoResize(source);
-
-                            break;
+                            TryAddColliderSource(childColliderPtr, matrix, childEntity, true);
                         }
-                        case ColliderType.Capsule:
-                        {
-                            CapsuleCollider capsuleCollider = *(CapsuleCollider*)collider;
 
-                            float4x4 transform = float4x4.TRS(ltw.Position, ltw.Rotation, new float3(1));
-
-                            float3 centerOffset = capsuleCollider.Geometry.GetCenter();
-
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                centerOffset *= ltw.Value.Scale();
-
-                            transform = math.mul(transform, float4x4.Translate(centerOffset));
-
-                            float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
-                            float width = capsuleCollider.Radius * 2;
-
-                            UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
-                            {
-                                Area = area,
-                                GenerateLinks = generateLinks,
-                                Shape = NavMeshBuildSourceShape.Capsule,
-                                TransformMatrix = transform,
-                                Size = new float3(width, height, width)
-                            };
-
-                            if (ltw.Value.HasNonUniformScale() == false)
-                                source.Size *= ltw.Value.Scale();
-
-                            Sources.AddNoResize(source);
-
-                            break;
-                        }
-                        case ColliderType.Mesh:
-                        {
-                            if (MeshColliderMeshReferenceLookup.HasComponent(entity))
-                            {
-                                MeshColliderMeshReference meshColliderMeshReference = MeshColliderMeshReferenceLookup[entity];
-
-                                UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
-                                {
-                                    Area = area,
-                                    GenerateLinks = generateLinks,
-                                    Shape = NavMeshBuildSourceShape.Mesh,
-                                    TransformMatrix = ltw.Value,
-                                    MeshReference = meshColliderMeshReference.Value
-                                };
-
-                                Sources.AddNoResize(source);
-                            }
-
-                            break;
-                        }
-                        case ColliderType.Compound:
-                        {
-                            RigidTransform worldTransform = new RigidTransform(ltw.Rotation, ltw.Position);
-
-                            DynamicBuffer<PhysicsColliderKeyEntityPair> colliderKeyEntityPairs = ColliderKeyEntityPairBufferLookup[entity];
-
-                            for (int i = 0; i < colliderKeyEntityPairs.Length; i++)
-                            {
-                                ColliderKey colliderKey = colliderKeyEntityPairs[i].Key;
-                                Entity childEntity = colliderKeyEntityPairs[i].Entity;
-
-                                collider->GetChild(ref colliderKey, out ChildCollider childCollider);
-
-                                Collider* colliderPtr = childCollider.Collider;
-
-                                CollisionFilter childFilter = colliderPtr->GetCollisionFilter();
-
-                                if ((childFilter.BelongsTo & LayerMaskValue) == 0)
-                                    continue;
-
-                                RigidTransform childWorld = math.mul(worldTransform, childCollider.TransformFromChild);
-
-                                Aabb colliderAabb = colliderPtr->CalculateAabb(childWorld);
-
-                                if (Bounds.Contains(colliderAabb) == false && Bounds.Overlaps(colliderAabb) == false)
-                                    continue;
-
-                                float4x4 childMatrix = float4x4.TRS(childWorld.pos, childWorld.rot, new float3(1));
-
-                                UnmanagedNavMeshBuildSource childSource = new UnmanagedNavMeshBuildSource()
-                                {
-                                    Area = area,
-                                    GenerateLinks = generateLinks
-                                };
-
-                                switch (colliderPtr->Type)
-                                {
-                                    case ColliderType.Box:
-                                    {
-                                        BoxCollider* box = (BoxCollider*)colliderPtr;
-
-                                        childSource.Shape = NavMeshBuildSourceShape.Box;
-                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(box->Center));
-                                        childSource.Size = box->Size;
-
-                                        Sources.AddNoResize(childSource);
-                                        break;
-                                    }
-
-                                    case ColliderType.Sphere:
-                                    {
-                                        SphereCollider* sphere = (SphereCollider*)colliderPtr;
-
-                                        childSource.Shape = NavMeshBuildSourceShape.Sphere;
-                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(sphere->Center));
-                                        childSource.Size = new float3(sphere->Radius * 2);
-
-                                        Sources.AddNoResize(childSource);
-                                        break;
-                                    }
-
-                                    case ColliderType.Capsule:
-                                    {
-                                        CapsuleCollider* capsule = (CapsuleCollider*)colliderPtr;
-
-                                        float3 center = capsule->Geometry.GetCenter();
-
-                                        childSource.Shape = NavMeshBuildSourceShape.Capsule;
-                                        childSource.TransformMatrix = math.mul(childMatrix, float4x4.Translate(center));
-
-                                        float height = math.distance(capsule->Geometry.Vertex0, capsule->Geometry.Vertex1) + capsule->Radius * 2;
-                                        float width = capsule->Radius * 2;
-
-                                        childSource.Size = new float3(width, height, width);
-
-                                        Sources.AddNoResize(childSource);
-                                        break;
-                                    }
-                                    case ColliderType.Mesh:
-                                    {
-                                        if (MeshColliderMeshReferenceLookup.HasComponent(childEntity))
-                                        {
-                                            MeshColliderMeshReference meshRef = MeshColliderMeshReferenceLookup[childEntity];
-
-                                            childSource.Shape = NavMeshBuildSourceShape.Mesh;
-                                            childSource.TransformMatrix = LocalToWorldLookup[childEntity].Value;
-                                            childSource.MeshReference = meshRef.Value;
-
-                                            Sources.AddNoResize(childSource);
-                                        }
-
-                                        break;
-                                    }
-                                }
-                            }
-
-                            break;
-                        }
+                        break;
                     }
                 }
             }
