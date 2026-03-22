@@ -56,7 +56,7 @@ namespace Entities.Systems.Pathdinding
         protected override void OnCreate()
         {
             _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
-            _intNativeReference = new NativeReference<int>();
+            _intNativeReference = new NativeReference<int>(Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
@@ -161,7 +161,7 @@ namespace Entities.Systems.Pathdinding
             sources.Clear();
             _sourcesNativeBuffer.Clear();
 
-            EnsureSourceBufferCapacity(geometry);
+            EnsureSourceBufferCapacity(geometry, bounds, layerMask);
 
             _navMeshModifierLookup.Update(this);
             _parentLookup.Update(this);
@@ -249,29 +249,107 @@ namespace Entities.Systems.Pathdinding
             await UniTask.SwitchToMainThread(token);
         }
 
-        private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry)
+        private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry, Bounds bounds, LayerMask layerMask)
         {
             int targetCapacity;
 
             int modifierVolumesCount = SystemAPI.QueryBuilder().WithAll<NavMeshModifierVolume>().Build().CalculateEntityCount();
 
+            _intNativeReference.Value = 0;
+
             if (geometry == NavMeshCollectGeometry.PhysicsColliders)
             {
-                int collidersCount = SystemAPI.QueryBuilder().WithAll<PhysicsCollider>().Build().CalculateEntityCount();
+                CalculatePhysicSourcesCountJob calculatePhysicSourcesCountJob = new CalculatePhysicSourcesCountJob()
+                {
+                    Bounds = new Aabb() { Min = bounds.min, Max = bounds.max },
+                    LayerMaskValue = layerMask.value,
+                    Result = _intNativeReference
+                };
 
-                targetCapacity = math.max(collidersCount, modifierVolumesCount);
+                calculatePhysicSourcesCountJob.Schedule(Dependency).Complete();
+
+                targetCapacity = _intNativeReference.Value + modifierVolumesCount;
             }
             else
             {
-                int meshesCount = SystemAPI.QueryBuilder().WithAll<MeshRendererMeshReference>().Build().CalculateEntityCount();
+                CalculateMeshSourcesCountJob calculateMeshSourcesCountJob = new CalculateMeshSourcesCountJob()
+                {
+                    Bounds = new AABB { Center = bounds.center, Extents = bounds.extents },
+                    LayerMaskValue = layerMask.value,
+                    Result = _intNativeReference
+                };
 
-                targetCapacity = math.max(meshesCount, modifierVolumesCount);
+                calculateMeshSourcesCountJob.Schedule(Dependency).Complete();
+
+                targetCapacity = _intNativeReference.Value + modifierVolumesCount;
             }
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
+        }
 
-            Debug.LogError("New buffer capacity: " + _sourcesBuffer.Capacity);
+        [BurstCompile]
+        private partial struct CalculatePhysicSourcesCountJob : IJobEntity
+        {
+            public Aabb Bounds;
+            public int LayerMaskValue;
+
+            public NativeReference<int> Result;
+
+            public void Execute(in LocalToWorld ltw, in PhysicsCollider physicsCollider, in Entity entity)
+            {
+                if (physicsCollider.IsValid == false)
+                    return;
+
+                unsafe
+                {
+                    Collider* colliderPtr = physicsCollider.ColliderPtr;
+
+                    CollisionFilter filter = colliderPtr->GetCollisionFilter();
+
+                    if ((filter.BelongsTo & LayerMaskValue) == 0)
+                        return;
+
+                    RigidTransform worldTransform = new RigidTransform(ltw.Value.GetRotation(), ltw.Value.GetPosition());
+
+                    Aabb colliderAabb = colliderPtr->CalculateAabb(worldTransform);
+
+                    if (Bounds.Contains(colliderAabb) == false && Bounds.Overlaps(colliderAabb) == false)
+                        return;
+
+                    if (colliderPtr->Type == ColliderType.Compound)
+                    {
+                        CompoundCollider compoundCollider = *(CompoundCollider*)colliderPtr;
+
+                        Result.Value += compoundCollider.NumChildren;
+                    }
+                    else
+                    {
+                        Result.Value++;
+                    }
+                }
+            }
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(MeshRendererMeshReference))]
+        private partial struct CalculateMeshSourcesCountJob : IJobEntity
+        {
+            public AABB Bounds;
+            public int LayerMaskValue;
+
+            public NativeReference<int> Result;
+
+            public void Execute(in WorldRenderBounds worldRenderBounds, in RenderFilterSettings renderFilterSettings, in Entity entity)
+            {
+                if (((1 << renderFilterSettings.Layer) & (uint)LayerMaskValue) == 0)
+                    return;
+
+                if (Bounds.Contains(worldRenderBounds.Value) == false && Bounds.Overlaps(worldRenderBounds.Value) == false)
+                    return;
+
+                Result.Value++;
+            }
         }
 
         [BurstCompile]
