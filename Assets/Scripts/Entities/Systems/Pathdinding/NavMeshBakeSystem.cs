@@ -24,6 +24,7 @@ using Collider = Unity.Physics.Collider;
 using NavMeshModifier = Entities.Bakers.Pathfinding.NavMeshModifier;
 using NavMeshModifierVolume = Entities.Bakers.Pathfinding.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
+using TerrainCollider = UnityEngine.TerrainCollider;
 
 namespace Entities.Systems.Pathdinding
 {
@@ -246,6 +247,10 @@ namespace Entities.Systems.Pathdinding
                     await UniTask.Yield(token);
             }
 
+            await UniTask.Yield(token);
+
+            CollectTerrainSources(bounds, layerMask, defaultArea, geometry, sources);
+
             await UniTask.SwitchToMainThread(token);
         }
 
@@ -254,6 +259,8 @@ namespace Entities.Systems.Pathdinding
             int targetCapacity;
 
             int modifierVolumesCount = SystemAPI.QueryBuilder().WithAll<NavMeshModifierVolume>().Build().CalculateEntityCount();
+
+            int terrainsCount = CalculateTerrainSourcesCount(bounds, layerMask, geometry);
 
             _intNativeReference.Value = 0;
 
@@ -268,7 +275,7 @@ namespace Entities.Systems.Pathdinding
 
                 calculatePhysicSourcesCountJob.Schedule(Dependency).Complete();
 
-                targetCapacity = _intNativeReference.Value + modifierVolumesCount;
+                targetCapacity = _intNativeReference.Value + modifierVolumesCount + terrainsCount;
             }
             else
             {
@@ -281,7 +288,7 @@ namespace Entities.Systems.Pathdinding
 
                 calculateMeshSourcesCountJob.Schedule(Dependency).Complete();
 
-                targetCapacity = _intNativeReference.Value + modifierVolumesCount;
+                targetCapacity = _intNativeReference.Value + modifierVolumesCount + terrainsCount;
             }
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
@@ -697,6 +704,66 @@ namespace Entities.Systems.Pathdinding
                 };
 
                 Sources.AddNoResize(source);
+            }
+        }
+
+        private int CalculateTerrainSourcesCount(Bounds bounds, LayerMask layerMask, NavMeshCollectGeometry geometry)
+        {
+            int count = 0;
+
+            foreach (Terrain terrain in Terrain.activeTerrains)
+            {
+                if (layerMask.ContainsLayer(terrain.gameObject.layer) == false)
+                    continue;
+
+                Bounds terrainBounds = terrain.terrainData.bounds;
+                terrainBounds.center += terrain.transform.position;
+
+                if (bounds.Contains(terrainBounds) == false && bounds.Intersects(terrainBounds) == false)
+                    continue;
+
+                if (geometry == NavMeshCollectGeometry.PhysicsColliders)
+                {
+                    if (terrain.TryGetComponent(out TerrainCollider _) == false)
+                        continue;
+                }
+
+                count++;
+            }
+
+            return count;
+        }
+
+        private void CollectTerrainSources(Bounds bounds, LayerMask layerMask, int area, NavMeshCollectGeometry geometry, List<NavMeshBuildSource> sources)
+        {
+            NavMeshBuildSource source = new NavMeshBuildSource()
+            {
+                area = area,
+                shape = NavMeshBuildSourceShape.Terrain,
+            };
+
+            foreach (Terrain terrain in Terrain.activeTerrains)
+            {
+                if (layerMask.ContainsLayer(terrain.gameObject.layer) == false)
+                    continue;
+
+                Bounds terrainBounds = terrain.terrainData.bounds;
+                terrainBounds.center += terrain.transform.position;
+
+                if (bounds.Contains(terrainBounds) == false && bounds.Intersects(terrainBounds) == false)
+                    continue;
+
+                if (geometry == NavMeshCollectGeometry.PhysicsColliders)
+                {
+                    if (terrain.TryGetComponent(out TerrainCollider _) == false)
+                        continue;
+                }
+
+                source.transform = terrain.transform.localToWorldMatrix;
+                source.sourceObject = terrain.terrainData;
+                source.component = terrain;
+
+                sources.Add(source);
             }
         }
     }
