@@ -38,6 +38,7 @@ namespace Entities.Systems.Pathdinding
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
         private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
+        private NativeReference<int> _intNativeReference;
 
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
@@ -55,6 +56,7 @@ namespace Entities.Systems.Pathdinding
         protected override void OnCreate()
         {
             _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
+            _intNativeReference = new NativeReference<int>();
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
@@ -84,6 +86,7 @@ namespace Entities.Systems.Pathdinding
         protected override void OnDestroy()
         {
             _sourcesNativeBuffer.Dispose();
+            _intNativeReference.Dispose();
             _cts.Cancel();
         }
 
@@ -267,6 +270,8 @@ namespace Entities.Systems.Pathdinding
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
+
+            Debug.LogError("New buffer capacity: " + _sourcesBuffer.Capacity);
         }
 
         [BurstCompile]
@@ -358,24 +363,28 @@ namespace Entities.Systems.Pathdinding
                     {
                         BoxCollider boxCollider = *(BoxCollider*)colliderPtr;
 
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), 1f);
+
+                        float3 originalScale = matrix.GetScale();
+
                         float3 centerOffset = boxCollider.Center;
 
-                        if (matrix.HasNonUniformScale())
-                            centerOffset /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= originalScale;
 
-                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
 
                         UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                         {
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Box,
-                            TransformMatrix = matrix,
+                            TransformMatrix = transform,
                             Size = boxCollider.Size
                         };
 
-                        if (matrix.HasNonUniformScale())
-                            source.Size /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= originalScale;
 
                         Sources.AddNoResize(source);
 
@@ -385,24 +394,28 @@ namespace Entities.Systems.Pathdinding
                     {
                         SphereCollider sphereCollider = *(SphereCollider*)colliderPtr;
 
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), 1f);
+
+                        float3 originalScale = matrix.GetScale();
+
                         float3 centerOffset = sphereCollider.Center;
 
-                        if (matrix.HasNonUniformScale())
-                            centerOffset /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= originalScale;
 
-                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
 
                         UnmanagedNavMeshBuildSource source = new UnmanagedNavMeshBuildSource()
                         {
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Sphere,
-                            TransformMatrix = matrix,
+                            TransformMatrix = transform,
                             Size = new float3(sphereCollider.Radius * 2)
                         };
 
-                        if (matrix.HasNonUniformScale())
-                            source.Size /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= originalScale;
 
                         Sources.AddNoResize(source);
 
@@ -412,12 +425,16 @@ namespace Entities.Systems.Pathdinding
                     {
                         CapsuleCollider capsuleCollider = *(CapsuleCollider*)colliderPtr;
 
+                        float4x4 transform = float4x4.TRS(matrix.GetPosition(), matrix.GetRotation(), 1f);
+
+                        float3 originalScale = matrix.GetScale();
+
                         float3 centerOffset = capsuleCollider.Geometry.GetCenter();
 
-                        if (matrix.HasNonUniformScale())
-                            centerOffset /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            centerOffset *= originalScale;
 
-                        matrix = math.mul(matrix, float4x4.Translate(centerOffset));
+                        transform = math.mul(transform, float4x4.Translate(centerOffset));
 
                         float height = math.distance(capsuleCollider.Geometry.Vertex0, capsuleCollider.Geometry.Vertex1) + capsuleCollider.Radius * 2;
                         float width = capsuleCollider.Radius * 2;
@@ -427,12 +444,12 @@ namespace Entities.Systems.Pathdinding
                             Area = area,
                             GenerateLinks = generateLinks,
                             Shape = NavMeshBuildSourceShape.Capsule,
-                            TransformMatrix = matrix,
+                            TransformMatrix = transform,
                             Size = new float3(width, height, width)
                         };
 
-                        if (matrix.HasNonUniformScale())
-                            source.Size /= matrix.GetScale();
+                        if (matrix.HasNonUniformScale() == false)
+                            source.Size *= originalScale;
 
                         Sources.AddNoResize(source);
 
