@@ -1,4 +1,5 @@
-﻿using Gameplay.StateMachine.States.Core;
+﻿using Entities.Systems.Pathdinding;
+using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
 using Gameplay.Systems.Audio;
 using Gameplay.Systems.Groups;
@@ -84,6 +85,7 @@ namespace Gameplay.StateMachine.States
         private void CreateLateUpdateSystems()
         {
             CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
+            CreateSystemManaged<NavMeshObstacleSystem, LateUpdateSystemGroup>();
         }
 
         private void CreateSystem<T, TGroup>() where T : unmanaged, ISystem where TGroup : ComponentSystemGroup

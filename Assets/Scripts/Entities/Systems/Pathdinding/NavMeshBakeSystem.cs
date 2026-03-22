@@ -105,7 +105,7 @@ namespace Entities.Systems.Pathdinding
             foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces.ToList())
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
-
+                
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
 
