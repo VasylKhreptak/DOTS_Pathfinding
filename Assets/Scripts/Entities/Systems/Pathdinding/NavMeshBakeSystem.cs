@@ -9,9 +9,11 @@ using Plugins.Extensions;
 using Unity.AI.Navigation;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Graphics;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Rendering;
@@ -39,7 +41,7 @@ namespace Entities.Systems.Pathdinding
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
         private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
-        private NativeReference<int> _intNativeReference;
+        private NativeArray<int> _intCounter;
 
         private ComponentLookup<NavMeshModifier> _navMeshModifierLookup;
         private ComponentLookup<Parent> _parentLookup;
@@ -57,7 +59,7 @@ namespace Entities.Systems.Pathdinding
         protected override void OnCreate()
         {
             _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
-            _intNativeReference = new NativeReference<int>(Allocator.Persistent);
+            _intCounter = new NativeArray<int>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
             _parentLookup = GetComponentLookup<Parent>(true);
@@ -87,7 +89,7 @@ namespace Entities.Systems.Pathdinding
         protected override void OnDestroy()
         {
             _sourcesNativeBuffer.Dispose();
-            _intNativeReference.Dispose();
+            _intCounter.Dispose();
             _cts.Cancel();
         }
 
@@ -105,7 +107,7 @@ namespace Entities.Systems.Pathdinding
             foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces.ToList())
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
-                
+
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
 
@@ -262,7 +264,8 @@ namespace Entities.Systems.Pathdinding
 
             int terrainsCount = CalculateTerrainSourcesCount(bounds, layerMask, geometry);
 
-            _intNativeReference.Value = 0;
+            for (int i = 0; i < _intCounter.Length; i++)
+                _intCounter[i] = 0;
 
             if (geometry == NavMeshCollectGeometry.PhysicsColliders)
             {
@@ -270,12 +273,18 @@ namespace Entities.Systems.Pathdinding
                 {
                     Bounds = new Aabb() { Min = bounds.min, Max = bounds.max },
                     LayerMaskValue = layerMask.value,
-                    Result = _intNativeReference
+                    Counter = _intCounter
                 };
 
-                calculatePhysicSourcesCountJob.Schedule(Dependency).Complete();
+                Dependency = calculatePhysicSourcesCountJob.Schedule(Dependency);
+                Dependency.Complete();
 
-                targetCapacity = _intNativeReference.Value + modifierVolumesCount + terrainsCount;
+                int physicsColliderCount = 0;
+
+                for (int i = 0; i < _intCounter.Length; i++)
+                    physicsColliderCount += _intCounter[i];
+
+                targetCapacity = physicsColliderCount + modifierVolumesCount + terrainsCount;
             }
             else
             {
@@ -283,12 +292,18 @@ namespace Entities.Systems.Pathdinding
                 {
                     Bounds = new AABB { Center = bounds.center, Extents = bounds.extents },
                     LayerMaskValue = layerMask.value,
-                    Result = _intNativeReference
+                    Counter = _intCounter
                 };
 
-                calculateMeshSourcesCountJob.Schedule(Dependency).Complete();
+                Dependency = calculateMeshSourcesCountJob.ScheduleParallel(Dependency);
+                Dependency.Complete();
 
-                targetCapacity = _intNativeReference.Value + modifierVolumesCount + terrainsCount;
+                int meshSourcesCount = 0;
+
+                for (int i = 0; i < _intCounter.Length; i++)
+                    meshSourcesCount += _intCounter[i];
+
+                targetCapacity = meshSourcesCount + modifierVolumesCount + terrainsCount;
             }
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
@@ -301,7 +316,9 @@ namespace Entities.Systems.Pathdinding
             public Aabb Bounds;
             public int LayerMaskValue;
 
-            public NativeReference<int> Result;
+            [NativeDisableParallelForRestriction] public NativeArray<int> Counter;
+
+            [NativeSetThreadIndex] private int _threadIndex;
 
             public void Execute(in LocalToWorld ltw, in PhysicsCollider physicsCollider, in Entity entity)
             {
@@ -328,11 +345,11 @@ namespace Entities.Systems.Pathdinding
                     {
                         CompoundCollider compoundCollider = *(CompoundCollider*)colliderPtr;
 
-                        Result.Value += compoundCollider.NumChildren;
+                        Counter[_threadIndex] += compoundCollider.NumChildren;
                     }
                     else
                     {
-                        Result.Value++;
+                        Counter[_threadIndex]++;
                     }
                 }
             }
@@ -345,7 +362,9 @@ namespace Entities.Systems.Pathdinding
             public AABB Bounds;
             public int LayerMaskValue;
 
-            public NativeReference<int> Result;
+            [NativeDisableParallelForRestriction] public NativeArray<int> Counter;
+
+            [NativeSetThreadIndex] private int _threadIndex;
 
             public void Execute(in WorldRenderBounds worldRenderBounds, in RenderFilterSettings renderFilterSettings, in Entity entity)
             {
@@ -355,7 +374,7 @@ namespace Entities.Systems.Pathdinding
                 if (Bounds.Contains(worldRenderBounds.Value) == false && Bounds.Overlaps(worldRenderBounds.Value) == false)
                     return;
 
-                Result.Value++;
+                Counter[_threadIndex]++;
             }
         }
 
