@@ -150,7 +150,7 @@ namespace Entities.Systems.Pathdinding
                     NavMeshData navMeshData = new NavMeshData();
 
                     navMeshSurface.navMeshData = navMeshData;
-                    
+
                     navMeshSurface.RemoveData();
                     navMeshSurface.AddData();
 
