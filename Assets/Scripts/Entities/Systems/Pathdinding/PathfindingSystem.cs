@@ -23,7 +23,7 @@ namespace Entities.Systems.Pathdinding
                     pathFinder.ValueRW.LastCalculationTime = (float)state.WorldUnmanaged.Time.ElapsedTime;
                 else
                     return;
-
+                
                 using NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 10000);
 
                 float3 extents = new float3(1);
@@ -31,20 +31,19 @@ namespace Entities.Systems.Pathdinding
                 NavMeshLocation startLocation = query.MapLocation(localToWorld.ValueRO.Position, extents, agent.ValueRO.AgentID);
                 NavMeshLocation endLocation = query.MapLocation(destination.ValueRO.Value, extents, agent.ValueRO.AgentID);
 
-                PathQueryStatus status;
-                PathQueryStatus returningStatus;
-
                 if (query.IsValid(startLocation) == false || query.IsValid(endLocation) == false)
                 {
                     Debug.LogError("Is valid false");
+                    waypointsBuffer.Clear();
                     return;
                 }
 
-                status = query.BeginFindPath(startLocation, endLocation);
+                PathQueryStatus status = query.BeginFindPath(startLocation, endLocation);
 
                 if (status != PathQueryStatus.InProgress)
                 {
                     Debug.LogError("Status:  " + status);
+                    waypointsBuffer.Clear();
                     return;
                 }
 
@@ -53,6 +52,7 @@ namespace Entities.Systems.Pathdinding
                 if (status != PathQueryStatus.Success)
                 {
                     Debug.LogError("Status:  " + status);
+                    waypointsBuffer.Clear();
                     return;
                 }
 
@@ -61,6 +61,7 @@ namespace Entities.Systems.Pathdinding
                 if ((status & PathQueryStatus.Success) == 0)
                 {
                     Debug.LogError("Status:  " + status);
+                    waypointsBuffer.Clear();
                     return;
                 }
 
@@ -73,7 +74,7 @@ namespace Entities.Systems.Pathdinding
 
                 query.GetPathResult(polygonIds);
 
-                returningStatus = PathUtils
+                status = PathUtils
                     .FindStraightPath(query,
                         startLocation.position,
                         endLocation.position,
@@ -89,9 +90,10 @@ namespace Entities.Systems.Pathdinding
                 vertexSize.Dispose();
                 polygonIds.Dispose();
 
-                if (returningStatus != PathQueryStatus.Success)
+                if (status != PathQueryStatus.Success)
                 {
                     Debug.LogError("Status:  " + status);
+                    waypointsBuffer.Clear();
                     result.Dispose();
                     return;
                 }
