@@ -24,7 +24,7 @@ namespace Entities.Systems.Pathdinding
                 else
                     return;
 
-                using NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 10000);
+                NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
 
                 float3 extents = new float3(1);
 
@@ -65,10 +65,10 @@ namespace Entities.Systems.Pathdinding
                     return;
                 }
 
-                NativeArray<NavMeshLocation> result = new NativeArray<NavMeshLocation>(pathSize, Allocator.Temp);
-                NativeArray<StraightPathFlags> flags = new NativeArray<StraightPathFlags>(pathSize, Allocator.Temp);
-                NativeArray<float> vertexSize = new NativeArray<float>(pathSize, Allocator.Temp);
-                NativeArray<PolygonId> polygonIds = new NativeArray<PolygonId>(pathSize + 1, Allocator.Temp);
+                NativeArray<NavMeshLocation> result = CollectionHelper.CreateNativeArray<NavMeshLocation>(pathSize, state.WorldUpdateAllocator);
+                NativeArray<StraightPathFlags> flags = CollectionHelper.CreateNativeArray<StraightPathFlags>(pathSize, state.WorldUpdateAllocator);
+                NativeArray<float> vertexSize = CollectionHelper.CreateNativeArray<float>(pathSize, state.WorldUpdateAllocator);
+                NativeArray<PolygonId> polygonIds = CollectionHelper.CreateNativeArray<PolygonId>(pathSize + 1, state.WorldUpdateAllocator);
 
                 int straightPathCount = 0;
 
@@ -86,15 +86,10 @@ namespace Entities.Systems.Pathdinding
                         ref straightPathCount,
                         pathSize);
 
-                flags.Dispose();
-                vertexSize.Dispose();
-                polygonIds.Dispose();
-
                 if (status != PathQueryStatus.Success)
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    result.Dispose();
                     return;
                 }
 
@@ -114,8 +109,6 @@ namespace Entities.Systems.Pathdinding
 
                     waypointsBuffer.Add(waypoint);
                 }
-
-                result.Dispose();
             }
         }
     }
