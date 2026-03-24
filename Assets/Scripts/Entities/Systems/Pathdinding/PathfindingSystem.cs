@@ -23,7 +23,7 @@ namespace Entities.Systems.Pathdinding
                     pathFinder.ValueRW.LastCalculationTime = (float)state.WorldUnmanaged.Time.ElapsedTime;
                 else
                     return;
-                
+
                 using NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 10000);
 
                 float3 extents = new float3(1);
