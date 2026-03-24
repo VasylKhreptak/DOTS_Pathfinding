@@ -1,4 +1,5 @@
 ﻿using Entities.Systems.Pathdinding;
+using Entities.Systems.Pathdinding.Editor;
 using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
 using Gameplay.Systems.Audio;
@@ -86,6 +87,10 @@ namespace Gameplay.StateMachine.States
         {
             CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
             CreateSystemManaged<NavMeshObstacleSystem, LateUpdateSystemGroup>();
+            CreateSystem<PathfindingSystem, LateUpdateSystemGroup>();
+#if UNITY_EDITOR
+            CreateSystemManaged<PathDrawSystem, LateUpdateSystemGroup>();
+#endif
         }
 
         private void CreateSystem<T, TGroup>() where T : unmanaged, ISystem where TGroup : ComponentSystemGroup

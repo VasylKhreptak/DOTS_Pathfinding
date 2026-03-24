@@ -39,6 +39,7 @@ namespace Entities.Systems.Pathdinding
         private const int NavMeshSourceConversionBatchCount = 64;
 
         private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
+        private readonly List<NavMeshDataInstance> _navMeshDataInstances = new List<NavMeshDataInstance>();
         private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
         private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
         private NativeArray<int> _intCounter;
@@ -91,6 +92,9 @@ namespace Entities.Systems.Pathdinding
             _sourcesNativeBuffer.Dispose();
             _intCounter.Dispose();
             _cts.Cancel();
+
+            foreach (NavMeshDataInstance navMeshDataInstance in _navMeshDataInstances)
+                NavMesh.RemoveNavMeshData(navMeshDataInstance);
         }
 
         private async UniTask BakeNavMeshes(CancellationToken token)
@@ -152,6 +156,8 @@ namespace Entities.Systems.Pathdinding
                     navMeshSurface.navMeshData = navMeshData;
 
                     _navMeshDataBuffer.Add(navMeshData);
+
+                    _navMeshDataInstances.Add(NavMesh.AddNavMeshData(navMeshData));
                 }
             }
 
