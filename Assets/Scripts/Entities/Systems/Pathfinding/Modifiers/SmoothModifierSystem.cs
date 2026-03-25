@@ -36,24 +36,24 @@ namespace Entities.Systems.Pathfinding.Modifiers
         {
             public TickCount TickCount;
 
-            public void Execute(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> pathWaypoints, in SmoothModifier smoothModifier)
+            public void Execute(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 if (TickCount.Value != pathFinder.LastCalculationTickCount)
                     return;
 
-                switch (smoothModifier.SmoothType)
+                switch (modifier.SmoothType)
                 {
                     case SmoothType.Simple:
-                        ApplySimpleModifier(in pathFinder, ref pathWaypoints, in smoothModifier);
+                        ApplySimpleModifier(in pathFinder, ref path, in modifier);
                         break;
                     case SmoothType.Bezier:
-                        ApplyBezierModifier(in pathFinder, ref pathWaypoints, in smoothModifier);
+                        ApplyBezierModifier(in pathFinder, ref path, in modifier);
                         break;
                     case SmoothType.OffsetSimple:
-                        ApplyOffsetModifier(in pathFinder, ref pathWaypoints, in smoothModifier);
+                        ApplyOffsetModifier(in pathFinder, ref path, in modifier);
                         break;
                     case SmoothType.CurvedNonuniform:
-                        ApplyCurvedNonuniformModifier(in pathFinder, ref pathWaypoints, in smoothModifier);
+                        ApplyCurvedNonuniformModifier(in pathFinder, ref path, in modifier);
                         break;
                 }
             }
