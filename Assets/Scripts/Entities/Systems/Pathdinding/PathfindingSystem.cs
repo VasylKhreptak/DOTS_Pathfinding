@@ -26,7 +26,7 @@ namespace Entities.Systems.Pathdinding
 
                 NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
 
-                float3 extents = new float3(1);
+                float3 extents = new float3(10000);
 
                 NavMeshLocation startLocation = query.MapLocation(localToWorld.ValueRO.Position, extents, agent.ValueRO.AgentID);
                 NavMeshLocation endLocation = query.MapLocation(destination.ValueRO.Value, extents, agent.ValueRO.AgentID);
@@ -62,6 +62,14 @@ namespace Entities.Systems.Pathdinding
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
+                    return;
+                }
+
+                if (pathSize < 2)
+                {
+                    waypointsBuffer.Clear();
+                    waypointsBuffer.Add(new PathWaypoint() { Value = startLocation.position });
+                    waypointsBuffer.Add(new PathWaypoint() { Value = endLocation.position });
                     return;
                 }
 
