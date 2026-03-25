@@ -32,6 +32,7 @@ namespace Entities.Authoring.Pathfinding
     public struct PathFinder : IComponentData, IEnableableComponent
     {
         public float LastCalculationTime;
+        public long LastCalculationTickCount;
         public float CalculateInterval;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Entities.Systems.Pathdinding;
+﻿using Entities.Systems;
+using Entities.Systems.Pathdinding;
 using Entities.Systems.Pathdinding.Editor;
 using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
@@ -55,6 +56,7 @@ namespace Gameplay.StateMachine.States
 
         private void CreateEarlyUpdateSystems()
         {
+            CreateSystem<TickCountSystem, EarlyUpdateSystemGroup>();
             CreateSystem<RandomInitializationSystem, EarlyUpdateSystemGroup>();
         }
 

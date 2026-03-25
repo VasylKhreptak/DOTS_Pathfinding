@@ -1,5 +1,6 @@
 ﻿using System;
 using Entities.Authoring.Pathfinding;
+using Entities.Components;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -12,17 +13,29 @@ namespace Entities.Systems.Pathdinding
     [DisableAutoCreation]
     public partial struct PathfindingSystem : ISystem
     {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TickCount>();
+        }
+
         [Obsolete("Obsolete")]
         public void OnUpdate(ref SystemState state)
         {
+            TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
+
             foreach ((RefRO<LocalToWorld> localToWorld, RefRO<Destination> destination, RefRW<PathFinder> pathFinder, DynamicBuffer<PathWaypoint> waypointsBuffer,
                          RefRO<Agent> agent) in
                      SystemAPI.Query<RefRO<LocalToWorld>, RefRO<Destination>, RefRW<PathFinder>, DynamicBuffer<PathWaypoint>, RefRO<Agent>>())
             {
                 if (state.WorldUnmanaged.Time.ElapsedTime > pathFinder.ValueRO.LastCalculationTime + pathFinder.ValueRO.CalculateInterval)
+                {
                     pathFinder.ValueRW.LastCalculationTime = (float)state.WorldUnmanaged.Time.ElapsedTime;
+                    pathFinder.ValueRW.LastCalculationTickCount = tickCount.Value;
+                }
                 else
+                {
                     return;
+                }
 
                 NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
 

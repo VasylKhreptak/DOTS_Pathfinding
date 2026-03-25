@@ -17,7 +17,7 @@ namespace Entities.Authoring.Pathfinding
         }
     }
 
-    [InternalBufferCapacity(128)]
+    [InternalBufferCapacity(256)]
     public struct PathWaypoint : IBufferElementData
     {
         public float3 Value;
