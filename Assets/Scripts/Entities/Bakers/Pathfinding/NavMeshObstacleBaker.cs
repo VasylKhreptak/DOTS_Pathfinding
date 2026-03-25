@@ -10,7 +10,7 @@ namespace Entities.Bakers.Pathfinding
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            NavMeshObstacle navMeshObstacle = new NavMeshObstacle()
+            NavMeshObstacle navMeshObstacle = new NavMeshObstacle
             {
                 Shape = authoring.shape,
                 Center = authoring.center,

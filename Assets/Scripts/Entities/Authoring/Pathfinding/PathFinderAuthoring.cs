@@ -19,7 +19,7 @@ namespace Entities.Authoring.Pathfinding
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                PathFinder pathFinder = new PathFinder()
+                PathFinder pathFinder = new PathFinder
                 {
                     CalculateInterval = authoring._calculateInterval
                 };

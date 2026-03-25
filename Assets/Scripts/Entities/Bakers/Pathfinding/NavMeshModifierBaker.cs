@@ -51,6 +51,6 @@ namespace Entities.Bakers.Pathfinding
     public enum NavMeshModifierMode
     {
         AddOrModifyObject,
-        RemoveObject,
+        RemoveObject
     }
 }

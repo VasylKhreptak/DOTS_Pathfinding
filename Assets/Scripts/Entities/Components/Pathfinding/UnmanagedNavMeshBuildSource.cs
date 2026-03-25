@@ -14,9 +14,8 @@ namespace Entities.Components.Pathfinding
         public UnityObjectRef<Mesh> MeshReference;
         public bool GenerateLinks;
 
-        public static implicit operator NavMeshBuildSource(UnmanagedNavMeshBuildSource source)
-        {
-            return new NavMeshBuildSource
+        public static implicit operator NavMeshBuildSource(UnmanagedNavMeshBuildSource source) =>
+            new NavMeshBuildSource
             {
                 transform = source.TransformMatrix,
                 size = source.Size,
@@ -25,22 +24,19 @@ namespace Entities.Components.Pathfinding
                 sourceObject = source.MeshReference.Value,
                 generateLinks = source.GenerateLinks
             };
-        }
 
-        public static implicit operator UnmanagedNavMeshBuildSource(NavMeshBuildSource source)
-        {
-            return new UnmanagedNavMeshBuildSource
+        public static implicit operator UnmanagedNavMeshBuildSource(NavMeshBuildSource source) =>
+            new UnmanagedNavMeshBuildSource
             {
                 TransformMatrix = source.transform,
                 Size = source.size,
                 Shape = source.shape,
                 Area = source.area,
-                MeshReference = new UnityObjectRef<Mesh>()
+                MeshReference = new UnityObjectRef<Mesh>
                 {
                     Value = source.sourceObject as Mesh
                 },
                 GenerateLinks = source.generateLinks
             };
-        }
     }
 }

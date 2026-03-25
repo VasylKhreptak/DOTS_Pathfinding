@@ -14,8 +14,7 @@ namespace Entities.Authoring.Pathfinding
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                Agent agent = new Agent()
-                    { };
+                Agent agent = new Agent();
 
                 AddComponent(entity, agent);
             }

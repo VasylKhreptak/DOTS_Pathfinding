@@ -1,6 +1,7 @@
 ﻿using Entities.Systems;
 using Entities.Systems.Pathdinding;
 using Entities.Systems.Pathdinding.Editor;
+using Entities.Systems.Pathfinding.Modifiers;
 using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
 using Gameplay.Systems.Audio;
@@ -12,6 +13,7 @@ using Infrastructure.StateMachine.Main.States.Core;
 using Unity.Entities;
 using VContainer;
 using NavMeshBakeSystem = Entities.Systems.Pathdinding.NavMeshBakeSystem;
+using PathfindingSystem = Entities.Systems.Pathfinding.PathfindingSystem;
 
 namespace Gameplay.StateMachine.States
 {
@@ -90,6 +92,7 @@ namespace Gameplay.StateMachine.States
             CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
             CreateSystemManaged<NavMeshObstacleSystem, LateUpdateSystemGroup>();
             CreateSystem<PathfindingSystem, LateUpdateSystemGroup>();
+            CreateSystem<SmoothModifierSystem, LateUpdateSystemGroup>();
 #if UNITY_EDITOR
             CreateSystemManaged<PathDrawSystem, LateUpdateSystemGroup>();
 #endif
