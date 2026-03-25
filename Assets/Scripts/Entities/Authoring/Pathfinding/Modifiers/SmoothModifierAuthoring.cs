@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Entities.Authoring.Pathfinding.Modifiers
 {
+    [DisallowMultipleComponent]
     public class SmoothModifierAuthoring : MonoBehaviour
     {
         [SerializeField] private SmoothType _smoothType = SmoothType.Simple;
