@@ -28,7 +28,7 @@ using NavMeshModifierVolume = Entities.Bakers.Pathfinding.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
 using TerrainCollider = UnityEngine.TerrainCollider;
 
-namespace Entities.Systems.Pathdinding
+namespace Entities.Systems.Pathfinding
 {
     [DisableAutoCreation]
     public partial class NavMeshBakeSystem : SystemBase

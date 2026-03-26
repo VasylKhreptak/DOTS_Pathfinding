@@ -3,7 +3,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Entities.Systems.Pathdinding.Editor
+namespace Entities.Systems.Pathfinding
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [DisableAutoCreation]

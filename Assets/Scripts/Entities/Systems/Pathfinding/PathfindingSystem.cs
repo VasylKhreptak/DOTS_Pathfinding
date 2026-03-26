@@ -1,6 +1,7 @@
 ﻿using System;
 using Entities.Authoring.Pathfinding;
 using Entities.Components;
+using Pathfinding;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -28,13 +29,17 @@ namespace Entities.Systems.Pathfinding
             _navMeshQueries = new NativeArray<NavMeshQuery>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
+            {
                 _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 10000);
+            }
         }
 
         public void OnDestroy(ref SystemState state)
         {
             for (int i = 0; i < _navMeshQueries.Length; i++)
+            {
                 _navMeshQueries[i].Dispose();
+            }
 
             _navMeshQueries.Dispose();
         }
@@ -44,11 +49,11 @@ namespace Entities.Systems.Pathfinding
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
 
-            PathfindingJob job = new PathfindingJob()
+            PathfindingJob job = new PathfindingJob
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
-                NavMeshQueries = _navMeshQueries,
+                NavMeshQueries = _navMeshQueries
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);

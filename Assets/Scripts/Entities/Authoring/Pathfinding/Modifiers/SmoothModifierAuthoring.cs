@@ -22,7 +22,7 @@ namespace Entities.Authoring.Pathfinding.Modifiers
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                SmoothModifier smoothModifier = new SmoothModifier()
+                SmoothModifier smoothModifier = new SmoothModifier
                 {
                     SmoothType = authoring._smoothType,
                     Subdivisions = authoring._subdivisions,

@@ -24,73 +24,75 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
-[Flags]
-public enum StraightPathFlags
+namespace Pathfinding
 {
-    Start = 0x01, // The vertex is the start position.
-    End = 0x02, // The vertex is the end position.
-    OffMeshConnection = 0x04 // The vertex is start of an off-mesh link.
-}
-
-public class PathUtils
-{
-    public static float Perp2D(Vector3 u, Vector3 v) => u.z * v.x - u.x * v.z;
-
-    public static void Swap(ref Vector3 a, ref Vector3 b)
+    [Flags]
+    public enum StraightPathFlags
     {
-        Vector3 temp = a;
-        a = b;
-        b = temp;
+        Start = 0x01, // The vertex is the start position.
+        End = 0x02, // The vertex is the end position.
+        OffMeshConnection = 0x04 // The vertex is start of an off-mesh link.
     }
 
-    // Retrace portals between corners and register if type of polygon changes
-    public static int RetracePortals(NavMeshQuery query, int startIndex, int endIndex
-        , NativeSlice<PolygonId> path, int n, Vector3 termPos
-        , ref NativeArray<NavMeshLocation> straightPath
-        , ref NativeArray<StraightPathFlags> straightPathFlags
-        , int maxStraightPath)
+    public class PathUtils
     {
+        public static float Perp2D(Vector3 u, Vector3 v) => u.z * v.x - u.x * v.z;
+
+        public static void Swap(ref Vector3 a, ref Vector3 b)
+        {
+            Vector3 temp = a;
+            a = b;
+            b = temp;
+        }
+
+        // Retrace portals between corners and register if type of polygon changes
+        public static int RetracePortals(NavMeshQuery query, int startIndex, int endIndex
+            , NativeSlice<PolygonId> path, int n, Vector3 termPos
+            , ref NativeArray<NavMeshLocation> straightPath
+            , ref NativeArray<StraightPathFlags> straightPathFlags
+            , int maxStraightPath)
+        {
 #if DEBUG_CROWDSYSTEM_ASSERTS
         Assert.IsTrue(n < maxStraightPath);
         Assert.IsTrue(startIndex <= endIndex);
 #endif
 
-        for (int k = startIndex; k < endIndex - 1; ++k)
-        {
-            NavMeshPolyTypes type1 = query.GetPolygonType(path[k]);
-            NavMeshPolyTypes type2 = query.GetPolygonType(path[k + 1]);
-            if (type1 != type2)
+            for (int k = startIndex; k < endIndex - 1; ++k)
             {
-                Vector3 l, r;
-                bool status = query.GetPortalPoints(path[k], path[k + 1], out l, out r);
+                NavMeshPolyTypes type1 = query.GetPolygonType(path[k]);
+                NavMeshPolyTypes type2 = query.GetPolygonType(path[k + 1]);
+                if (type1 != type2)
+                {
+                    Vector3 l, r;
+                    bool status = query.GetPortalPoints(path[k], path[k + 1], out l, out r);
 
 #if DEBUG_CROWDSYSTEM_ASSERTS
                 Assert.IsTrue(status); // Expect path elements k, k+1 to be verified
 #endif
 
-                float3 cpa1, cpa2;
-                GeometryUtils.SegmentSegmentCPA(out cpa1, out cpa2, l, r, straightPath[n - 1].position, termPos);
-                straightPath[n] = query.CreateLocation(cpa1, path[k + 1]);
+                    float3 cpa1, cpa2;
+                    GeometryUtils.SegmentSegmentCPA(out cpa1, out cpa2, l, r, straightPath[n - 1].position, termPos);
+                    straightPath[n] = query.CreateLocation(cpa1, path[k + 1]);
 
-                straightPathFlags[n] = type2 == NavMeshPolyTypes.OffMeshConnection ? StraightPathFlags.OffMeshConnection : 0;
-                if (++n == maxStraightPath)
-                    return maxStraightPath;
+                    straightPathFlags[n] = type2 == NavMeshPolyTypes.OffMeshConnection ? StraightPathFlags.OffMeshConnection : 0;
+                    if (++n == maxStraightPath)
+                        return maxStraightPath;
+                }
             }
+
+            straightPath[n] = query.CreateLocation(termPos, path[endIndex]);
+            straightPathFlags[n] = query.GetPolygonType(path[endIndex]) == NavMeshPolyTypes.OffMeshConnection ? StraightPathFlags.OffMeshConnection : 0;
+            return ++n;
         }
 
-        straightPath[n] = query.CreateLocation(termPos, path[endIndex]);
-        straightPathFlags[n] = query.GetPolygonType(path[endIndex]) == NavMeshPolyTypes.OffMeshConnection ? StraightPathFlags.OffMeshConnection : 0;
-        return ++n;
-    }
-
-    public static PathQueryStatus FindStraightPath(NavMeshQuery query, Vector3 startPos, Vector3 endPos
-        , NativeSlice<PolygonId> path, int pathSize
-        , ref NativeArray<NavMeshLocation> straightPath
-        , ref NativeArray<StraightPathFlags> straightPathFlags
-        , ref NativeArray<float> vertexSide
-        , ref int straightPathCount
-        , int maxStraightPath)
-    {
+        public static PathQueryStatus FindStraightPath(NavMeshQuery query, Vector3 startPos, Vector3 endPos
+            , NativeSlice<PolygonId> path, int pathSize
+            , ref NativeArray<NavMeshLocation> straightPath
+            , ref NativeArray<StraightPathFlags> straightPathFlags
+            , ref NativeArray<float> vertexSide
+            , ref int straightPathCount
+            , int maxStraightPath)
+        {
 #if DEBUG_CROWDSYSTEM_ASSERTS
         Assert.IsTrue(pathSize > 0, "FindStraightPath: The path cannot be empty");
         Assert.IsTrue(path.Length >= pathSize, "FindStraightPath: The array of path polygons must fit at least the size specified");
@@ -99,141 +101,142 @@ public class PathUtils
         Assert.IsTrue(straightPathFlags.Length >= straightPath.Length, "FindStraightPath: The array of returned flags must not be smaller than the array of returned corners");
 #endif
 
-        if (!query.IsValid(path[0]))
-        {
-            straightPath[0] = new NavMeshLocation(); // empty terminator
-            return PathQueryStatus.Failure; // | PathQueryStatus.InvalidParam;
-        }
-
-        straightPath[0] = query.CreateLocation(startPos, path[0]);
-
-        straightPathFlags[0] = StraightPathFlags.Start;
-
-        int apexIndex = 0;
-        int n = 1;
-
-        if (pathSize > 1)
-        {
-            Matrix4x4 startPolyWorldToLocal = query.PolygonWorldToLocalMatrix(path[0]);
-
-            Vector3 apex = startPolyWorldToLocal.MultiplyPoint(startPos);
-            Vector3 left = new Vector3(0, 0, 0); // Vector3.zero accesses a static readonly which does not work in burst yet
-            Vector3 right = new Vector3(0, 0, 0);
-            int leftIndex = -1;
-            int rightIndex = -1;
-
-            for (int i = 1; i <= pathSize; ++i)
+            if (!query.IsValid(path[0]))
             {
-                Matrix4x4 polyWorldToLocal = query.PolygonWorldToLocalMatrix(path[apexIndex]);
+                straightPath[0] = new NavMeshLocation(); // empty terminator
+                return PathQueryStatus.Failure; // | PathQueryStatus.InvalidParam;
+            }
 
-                Vector3 vl, vr;
-                if (i == pathSize)
-                    vl = vr = polyWorldToLocal.MultiplyPoint(endPos);
-                else
+            straightPath[0] = query.CreateLocation(startPos, path[0]);
+
+            straightPathFlags[0] = StraightPathFlags.Start;
+
+            int apexIndex = 0;
+            int n = 1;
+
+            if (pathSize > 1)
+            {
+                Matrix4x4 startPolyWorldToLocal = query.PolygonWorldToLocalMatrix(path[0]);
+
+                Vector3 apex = startPolyWorldToLocal.MultiplyPoint(startPos);
+                Vector3 left = new Vector3(0, 0, 0); // Vector3.zero accesses a static readonly which does not work in burst yet
+                Vector3 right = new Vector3(0, 0, 0);
+                int leftIndex = -1;
+                int rightIndex = -1;
+
+                for (int i = 1; i <= pathSize; ++i)
                 {
-                    bool success = query.GetPortalPoints(path[i - 1], path[i], out vl, out vr);
-                    if (!success)
-                        return PathQueryStatus.Failure; // | PathQueryStatus.InvalidParam;
+                    Matrix4x4 polyWorldToLocal = query.PolygonWorldToLocalMatrix(path[apexIndex]);
+
+                    Vector3 vl, vr;
+                    if (i == pathSize)
+                        vl = vr = polyWorldToLocal.MultiplyPoint(endPos);
+                    else
+                    {
+                        bool success = query.GetPortalPoints(path[i - 1], path[i], out vl, out vr);
+                        if (!success)
+                            return PathQueryStatus.Failure; // | PathQueryStatus.InvalidParam;
 
 #if DEBUG_CROWDSYSTEM_ASSERTS
                     Assert.IsTrue(query.IsValid(path[i - 1]));
                     Assert.IsTrue(query.IsValid(path[i]));
 #endif
 
-                    vl = polyWorldToLocal.MultiplyPoint(vl);
-                    vr = polyWorldToLocal.MultiplyPoint(vr);
-                }
-
-                vl = vl - apex;
-                vr = vr - apex;
-
-                // Ensure left/right ordering
-                if (Perp2D(vl, vr) < 0)
-                    Swap(ref vl, ref vr);
-
-                // Terminate funnel by turning
-                if (Perp2D(left, vr) < 0)
-                {
-                    Matrix4x4 polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
-                    Vector3 termPos = polyLocalToWorld.MultiplyPoint(apex + left);
-
-                    n = RetracePortals(query, apexIndex, leftIndex, path, n, termPos, ref straightPath, ref straightPathFlags, maxStraightPath);
-                    if (vertexSide.Length > 0)
-                        vertexSide[n - 1] = -1;
-
-                    //Debug.Log("LEFT");
-
-                    if (n == maxStraightPath)
-                    {
-                        straightPathCount = n;
-                        return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+                        vl = polyWorldToLocal.MultiplyPoint(vl);
+                        vr = polyWorldToLocal.MultiplyPoint(vr);
                     }
 
-                    apex = polyWorldToLocal.MultiplyPoint(termPos);
-                    left.Set(0, 0, 0);
-                    right.Set(0, 0, 0);
-                    i = apexIndex = leftIndex;
-                    continue;
-                }
+                    vl = vl - apex;
+                    vr = vr - apex;
 
-                if (Perp2D(right, vl) > 0)
-                {
-                    Matrix4x4 polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
-                    Vector3 termPos = polyLocalToWorld.MultiplyPoint(apex + right);
+                    // Ensure left/right ordering
+                    if (Perp2D(vl, vr) < 0)
+                        Swap(ref vl, ref vr);
 
-                    n = RetracePortals(query, apexIndex, rightIndex, path, n, termPos, ref straightPath, ref straightPathFlags, maxStraightPath);
-                    if (vertexSide.Length > 0)
-                        vertexSide[n - 1] = 1;
-
-                    //Debug.Log("RIGHT");
-
-                    if (n == maxStraightPath)
+                    // Terminate funnel by turning
+                    if (Perp2D(left, vr) < 0)
                     {
-                        straightPathCount = n;
-                        return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+                        Matrix4x4 polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
+                        Vector3 termPos = polyLocalToWorld.MultiplyPoint(apex + left);
+
+                        n = RetracePortals(query, apexIndex, leftIndex, path, n, termPos, ref straightPath, ref straightPathFlags, maxStraightPath);
+                        if (vertexSide.Length > 0)
+                            vertexSide[n - 1] = -1;
+
+                        //Debug.Log("LEFT");
+
+                        if (n == maxStraightPath)
+                        {
+                            straightPathCount = n;
+                            return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+                        }
+
+                        apex = polyWorldToLocal.MultiplyPoint(termPos);
+                        left.Set(0, 0, 0);
+                        right.Set(0, 0, 0);
+                        i = apexIndex = leftIndex;
+                        continue;
                     }
 
-                    apex = polyWorldToLocal.MultiplyPoint(termPos);
-                    left.Set(0, 0, 0);
-                    right.Set(0, 0, 0);
-                    i = apexIndex = rightIndex;
-                    continue;
-                }
+                    if (Perp2D(right, vl) > 0)
+                    {
+                        Matrix4x4 polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
+                        Vector3 termPos = polyLocalToWorld.MultiplyPoint(apex + right);
 
-                // Narrow funnel
-                if (Perp2D(left, vl) >= 0)
-                {
-                    left = vl;
-                    leftIndex = i;
-                }
+                        n = RetracePortals(query, apexIndex, rightIndex, path, n, termPos, ref straightPath, ref straightPathFlags, maxStraightPath);
+                        if (vertexSide.Length > 0)
+                            vertexSide[n - 1] = 1;
 
-                if (Perp2D(right, vr) <= 0)
-                {
-                    right = vr;
-                    rightIndex = i;
+                        //Debug.Log("RIGHT");
+
+                        if (n == maxStraightPath)
+                        {
+                            straightPathCount = n;
+                            return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+                        }
+
+                        apex = polyWorldToLocal.MultiplyPoint(termPos);
+                        left.Set(0, 0, 0);
+                        right.Set(0, 0, 0);
+                        i = apexIndex = rightIndex;
+                        continue;
+                    }
+
+                    // Narrow funnel
+                    if (Perp2D(left, vl) >= 0)
+                    {
+                        left = vl;
+                        leftIndex = i;
+                    }
+
+                    if (Perp2D(right, vr) <= 0)
+                    {
+                        right = vr;
+                        rightIndex = i;
+                    }
                 }
             }
-        }
 
-        // Remove the the next to last if duplicate point - e.g. start and end positions are the same
-        // (in which case we have get a single point)
-        if (n > 0 && straightPath[n - 1].position == endPos)
-            n--;
+            // Remove the the next to last if duplicate point - e.g. start and end positions are the same
+            // (in which case we have get a single point)
+            if (n > 0 && straightPath[n - 1].position == endPos)
+                n--;
 
-        n = RetracePortals(query, apexIndex, pathSize - 1, path, n, endPos, ref straightPath, ref straightPathFlags, maxStraightPath);
-        if (vertexSide.Length > 0)
-            vertexSide[n - 1] = 0;
+            n = RetracePortals(query, apexIndex, pathSize - 1, path, n, endPos, ref straightPath, ref straightPathFlags, maxStraightPath);
+            if (vertexSide.Length > 0)
+                vertexSide[n - 1] = 0;
 
-        if (n == maxStraightPath)
-        {
+            if (n == maxStraightPath)
+            {
+                straightPathCount = n;
+                return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+            }
+
+            // Fix flag for final path point
+            straightPathFlags[n - 1] = StraightPathFlags.End;
+
             straightPathCount = n;
-            return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
+            return PathQueryStatus.Success;
         }
-
-        // Fix flag for final path point
-        straightPathFlags[n - 1] = StraightPathFlags.End;
-
-        straightPathCount = n;
-        return PathQueryStatus.Success;
     }
 }

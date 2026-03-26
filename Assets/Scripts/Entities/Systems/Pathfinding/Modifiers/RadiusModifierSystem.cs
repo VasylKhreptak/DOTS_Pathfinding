@@ -189,7 +189,9 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 path.Clear();
                 path.EnsureCapacity(subdivided.Length);
                 for (int i = 0; i < subdivided.Length; i++)
+                {
                     path.Add(new PathWaypoint { Value = subdivided[i] });
+                }
 
                 subdivided.Dispose();
                 radi.Dispose();

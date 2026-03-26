@@ -1,6 +1,4 @@
 ﻿using Entities.Systems;
-using Entities.Systems.Pathdinding;
-using Entities.Systems.Pathdinding.Editor;
 using Entities.Systems.Pathfinding.Modifiers;
 using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
@@ -12,7 +10,9 @@ using Infrastructure.StateMachine.Main.Core;
 using Infrastructure.StateMachine.Main.States.Core;
 using Unity.Entities;
 using VContainer;
-using NavMeshBakeSystem = Entities.Systems.Pathdinding.NavMeshBakeSystem;
+using NavMeshBakeSystem = Entities.Systems.Pathfinding.NavMeshBakeSystem;
+using NavMeshObstacleSystem = Entities.Systems.Pathfinding.NavMeshObstacleSystem;
+using PathDrawSystem = Entities.Systems.Pathfinding.PathDrawSystem;
 using PathfindingSystem = Entities.Systems.Pathfinding.PathfindingSystem;
 
 namespace Gameplay.StateMachine.States

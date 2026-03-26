@@ -6,7 +6,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-namespace Entities.Systems.Pathdinding
+namespace Entities.Systems.Pathfinding
 {
     [DisableAutoCreation]
     public partial class NavMeshObstacleSystem : SystemBase
