@@ -29,17 +29,13 @@ namespace Entities.Systems.Pathfinding
             _navMeshQueries = new NativeArray<NavMeshQuery>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
-            {
                 _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 10000);
-            }
         }
 
         public void OnDestroy(ref SystemState state)
         {
             for (int i = 0; i < _navMeshQueries.Length; i++)
-            {
                 _navMeshQueries[i].Dispose();
-            }
 
             _navMeshQueries.Dispose();
         }
@@ -57,6 +53,7 @@ namespace Entities.Systems.Pathfinding
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
+            NavMeshWorld.GetDefaultWorld().AddDependency(state.Dependency);
         }
 
         [BurstCompile]
