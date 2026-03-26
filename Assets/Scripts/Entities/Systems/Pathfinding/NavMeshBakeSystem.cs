@@ -34,7 +34,7 @@ namespace Entities.Systems.Pathdinding
     public partial class NavMeshBakeSystem : SystemBase
     {
         private const float BakeInterval = 2f;
-        private const float Range = 100f;
+        private const float Range = 200f;
         private const int InitialSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 

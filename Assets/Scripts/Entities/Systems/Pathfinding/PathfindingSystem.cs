@@ -33,7 +33,7 @@ namespace Entities.Systems.Pathfinding
                     pathFinder.ValueRW.LastCalculationTickCount = tickCount.Value;
                 }
                 else
-                    return;
+                    continue;
 
                 NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
 
@@ -46,16 +46,16 @@ namespace Entities.Systems.Pathfinding
                 {
                     Debug.LogError("Is valid false");
                     waypointsBuffer.Clear();
-                    return;
+                    continue;
                 }
 
                 PathQueryStatus status = query.BeginFindPath(startLocation, endLocation);
 
-                if (status != PathQueryStatus.InProgress)
+                if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    return;
+                    continue;
                 }
 
                 status = query.UpdateFindPath(10000, out int pathSize);
@@ -64,7 +64,7 @@ namespace Entities.Systems.Pathfinding
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    return;
+                    continue;
                 }
 
                 status = query.EndFindPath(out pathSize);
@@ -73,7 +73,7 @@ namespace Entities.Systems.Pathfinding
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    return;
+                    continue;
                 }
 
                 if (pathSize < 2)
@@ -81,7 +81,7 @@ namespace Entities.Systems.Pathfinding
                     waypointsBuffer.Clear();
                     waypointsBuffer.Add(new PathWaypoint { Value = startLocation.position });
                     waypointsBuffer.Add(new PathWaypoint { Value = endLocation.position });
-                    return;
+                    continue;
                 }
 
                 NativeArray<NavMeshLocation> result = CollectionHelper.CreateNativeArray<NavMeshLocation>(pathSize, state.WorldUpdateAllocator);
@@ -109,7 +109,7 @@ namespace Entities.Systems.Pathfinding
                 {
                     Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    return;
+                    continue;
                 }
 
                 waypointsBuffer.Clear();
