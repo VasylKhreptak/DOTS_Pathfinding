@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Entities.Systems.Pathdinding.Editor
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [DisableAutoCreation]
     public partial class PathDrawSystem : SystemBase
     {
         protected override void OnUpdate()
