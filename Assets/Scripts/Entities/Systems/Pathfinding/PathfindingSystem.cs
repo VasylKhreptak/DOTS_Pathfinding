@@ -45,7 +45,7 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe void OnUpdate(ref SystemState state)
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
 
@@ -53,20 +53,19 @@ namespace Entities.Systems.Pathfinding
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
-                NavMeshQueries = _navMeshQueries
+                NavMeshQueriesPtr = (NavMeshQuery*)_navMeshQueries.GetUnsafePtr()
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
         }
 
         [BurstCompile]
-        private partial struct PathfindingJob : IJobEntity
+        private unsafe partial struct PathfindingJob : IJobEntity
         {
             public float ElapsedTime;
             public TickCount TickCount;
 
-            [NativeDisableContainerSafetyRestriction]
-            [NativeDisableParallelForRestriction] public NativeArray<NavMeshQuery> NavMeshQueries;
+            [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
             [NativeSetThreadIndex] private int _threadIndex;
 
@@ -83,16 +82,18 @@ namespace Entities.Systems.Pathfinding
 
                 float3 extents = new float3(10000);
 
-                NavMeshLocation startLocation = NavMeshQueries[_threadIndex].MapLocation(localToWorld.Position, extents, agent.AgentID);
-                NavMeshLocation endLocation = NavMeshQueries[_threadIndex].MapLocation(destination.Value, extents, agent.AgentID);
+                NavMeshQuery query = NavMeshQueriesPtr[_threadIndex];
 
-                if (!NavMeshQueries[_threadIndex].IsValid(startLocation) || !NavMeshQueries[_threadIndex].IsValid(endLocation))
+                NavMeshLocation startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
+                NavMeshLocation endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
+
+                if (!query.IsValid(startLocation) || !query.IsValid(endLocation))
                 {
                     waypointsBuffer.Clear();
                     return;
                 }
 
-                PathQueryStatus status = NavMeshQueries[_threadIndex].BeginFindPath(startLocation, endLocation);
+                PathQueryStatus status = query.BeginFindPath(startLocation, endLocation);
 
                 if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                 {
@@ -100,7 +101,7 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                status = NavMeshQueries[_threadIndex].UpdateFindPath(10000, out int pathSize);
+                status = query.UpdateFindPath(10000, out int pathSize);
 
                 if (status != PathQueryStatus.Success)
                 {
@@ -108,7 +109,7 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                status = NavMeshQueries[_threadIndex].EndFindPath(out pathSize);
+                status = query.EndFindPath(out pathSize);
 
                 if ((status & PathQueryStatus.Success) == 0)
                 {
@@ -139,10 +140,10 @@ namespace Entities.Systems.Pathfinding
 
                 int straightPathCount = 0;
 
-                NavMeshQueries[_threadIndex].GetPathResult(polygonIds);
+                query.GetPathResult(polygonIds);
 
                 status = PathUtils
-                    .FindStraightPath(NavMeshQueries[_threadIndex],
+                    .FindStraightPath(query,
                         startLocation.position,
                         endLocation.position,
                         polygonIds,
