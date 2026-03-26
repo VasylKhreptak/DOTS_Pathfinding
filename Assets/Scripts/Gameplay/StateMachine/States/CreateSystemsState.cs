@@ -89,9 +89,15 @@ namespace Gameplay.StateMachine.States
 
         private void CreateLateUpdateSystems()
         {
+            CreatePathfindingSystems();
+        }
+
+        private void CreatePathfindingSystems()
+        {
             CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
             CreateSystemManaged<NavMeshObstacleSystem, LateUpdateSystemGroup>();
             CreateSystem<PathfindingSystem, LateUpdateSystemGroup>();
+            CreateSystem<RadiusModifierSystem, LateUpdateSystemGroup>();
             CreateSystem<SmoothModifierSystem, LateUpdateSystemGroup>();
 #if UNITY_EDITOR
             CreateSystemManaged<PathDrawSystem, LateUpdateSystemGroup>();

@@ -23,7 +23,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
 
-            SmoothModifierJob job = new SmoothModifierJob()
+            SmoothModifierJob job = new SmoothModifierJob
             {
                 TickCount = tickCount
             };
@@ -71,10 +71,11 @@ namespace Entities.Systems.Pathfinding.Modifiers
 
                     float pathLength = 0;
                     for (int i = 0; i < path.Length - 1; i++)
+                    {
                         pathLength += math.distance(path[i].Value, path[i + 1].Value);
+                    }
 
                     int estimatedNumberOfSegments = (int)math.floor(pathLength / maxSegmentLength);
-                    ;
                     subdivided = new NativeList<float3>(estimatedNumberOfSegments + 2, Allocator.Temp);
 
                     float distanceAlong = 0;
@@ -128,9 +129,11 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 }
 
                 path.Clear();
-
+                path.EnsureCapacity(subdivided.Length);
                 for (int i = 0; i < subdivided.Length; i++)
-                    path.Add(new PathWaypoint() { Value = subdivided[i] });
+                {
+                    path.Add(new PathWaypoint { Value = subdivided[i] });
+                }
 
                 subdivided.Dispose();
             }
@@ -152,22 +155,14 @@ namespace Entities.Systems.Pathfinding.Modifiers
                     float3 tangent2;
 
                     if (i == 0)
-                    {
                         tangent1 = path[i + 1].Value - path[i].Value;
-                    }
                     else
-                    {
                         tangent1 = path[i + 1].Value - path[i - 1].Value;
-                    }
 
                     if (i == path.Length - 2)
-                    {
                         tangent2 = path[i].Value - path[i + 1].Value;
-                    }
                     else
-                    {
                         tangent2 = path[i].Value - path[i + 2].Value;
-                    }
 
                     tangent1 *= modifier.BezierTangentLength;
                     tangent2 *= modifier.BezierTangentLength;
@@ -178,15 +173,19 @@ namespace Entities.Systems.Pathfinding.Modifiers
                     float3 v3 = v4 + tangent2;
 
                     for (int j = 0; j < subMult; j++)
+                    {
                         subdivided.Add(CubicBezier(v1, v2, v3, v4, (float)j / subMult));
+                    }
                 }
 
                 subdivided.Add(path[path.Length - 1].Value);
 
                 path.Clear();
-
+                path.EnsureCapacity(subdivided.Length);
                 for (int i = 0; i < subdivided.Length; i++)
-                    path.Add(new PathWaypoint() { Value = subdivided[i] });
+                {
+                    path.Add(new PathWaypoint { Value = subdivided[i] });
+                }
 
                 subdivided.Dispose();
             }
@@ -208,7 +207,9 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 }
 
                 for (int i = 0; i < path.Length; i++)
+                {
                     subdivided[i] = path[i].Value;
+                }
 
                 for (int iteration = 0; iteration < modifier.Iterations; iteration++)
                 {
@@ -248,9 +249,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
                                 current + (firstRight ? normal * modifier.Offset * nextMultiplier : -normal * modifier.Offset * nextMultiplier);
                         }
                         else
-                        {
                             subdivided[i * 2] = current;
-                        }
 
                         if (setSecond)
                         {
@@ -258,18 +257,18 @@ namespace Entities.Systems.Pathfinding.Modifiers
                                 next + (secondRight ? normal * modifier.Offset * nextMultiplier : -normal * modifier.Offset * nextMultiplier);
                         }
                         else
-                        {
                             subdivided[i * 2 + 1] = next;
-                        }
                     }
 
                     subdivided[(path.Length - 2) * (int)math.pow(2, iteration + 1) + 2 - 1] = subdivided2[currentPathLength - 1];
                 }
 
                 path.Clear();
-
+                path.EnsureCapacity(subdivided.Length);
                 for (int i = 0; i < subdivided.Length; i++)
-                    path.Add(new PathWaypoint() { Value = subdivided[i] });
+                {
+                    path.Add(new PathWaypoint { Value = subdivided[i] });
+                }
 
                 subdivided.Dispose();
                 subdivided2.Dispose();
@@ -278,9 +277,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
             private void ApplyCurvedNonuniformModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 if (modifier.MaxSegmentLength <= 0)
-                {
                     return;
-                }
 
                 int pointCounter = 0;
                 for (int i = 0; i < path.Length - 1; i++)
@@ -327,9 +324,11 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 subdivided[subdivided.Length - 1] = path[path.Length - 1].Value;
 
                 path.Clear();
-
+                path.EnsureCapacity(subdivided.Length);
                 for (int i = 0; i < subdivided.Length; i++)
-                    path.Add(new PathWaypoint() { Value = subdivided[i] });
+                {
+                    path.Add(new PathWaypoint { Value = subdivided[i] });
+                }
 
                 subdivided.Dispose();
             }
@@ -338,7 +337,9 @@ namespace Entities.Systems.Pathfinding.Modifiers
             {
                 for (int i = 0; i < pathWaypoints.Length - 1; i++)
                 for (int j = 0; j < subSegments; j++)
+                {
                     result.Add(math.lerp(pathWaypoints[i].Value, pathWaypoints[i + 1].Value, j / (float)subSegments));
+                }
 
                 result.Add(pathWaypoints[pathWaypoints.Length - 1].Value);
             }

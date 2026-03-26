@@ -143,29 +143,29 @@ namespace Pathfinding {
 			}
 		}
 
-		float[] radi = new float[10];
-		float[] a1 = new float[10];
-		float[] a2 = new float[10];
-		bool[] dir = new bool[10];
+		private float[] _radi = new float[10];
+		private float[] _a1 = new float[10];
+		private float[] _a2 = new float[10];
+		private bool[] _dir = new bool[10];
 
 		/// <summary>Apply this modifier on a raw Vector3 list</summary>
 		public List<Vector3> Apply (List<Vector3> vs) {
 			if (vs == null || vs.Count < 3) return vs;
 
 			/// <summary>TODO: Do something about these allocations</summary>
-			if (radi.Length < vs.Count) {
-				radi = new float[vs.Count];
-				a1 = new float[vs.Count];
-				a2 = new float[vs.Count];
-				dir = new bool[vs.Count];
+			if (_radi.Length < vs.Count) {
+				_radi = new float[vs.Count];
+				_a1 = new float[vs.Count];
+				_a2 = new float[vs.Count];
+				_dir = new bool[vs.Count];
 			}
 
 			for (int i = 0; i < vs.Count; i++) {
-				radi[i] = radius;
+				_radi[i] = radius;
 			}
 
-			radi[0] = 0;
-			radi[vs.Count-1] = 0;
+			_radi[0] = 0;
+			_radi[vs.Count-1] = 0;
 
 			int count = 0;
 			for (int i = 0; i < vs.Count-1; i++) {
@@ -194,45 +194,45 @@ namespace Pathfinding {
 					float sigma;
 
 					//Calculate angles to the next circle and angles for the inner tangents
-					if (!CalculateCircleInner(vs[i], vs[i+1], radi[i], radi[i+1], out a, out sigma)) {
+					if (!CalculateCircleInner(vs[i], vs[i+1], _radi[i], _radi[i+1], out a, out sigma)) {
 						//Failed, try modifying radiuses
 						float magn = (vs[i+1]-vs[i]).magnitude;
-						radi[i] = magn*(radi[i]/(radi[i]+radi[i+1]));
-						radi[i+1] = magn - radi[i];
-						radi[i] *= 0.99f;
-						radi[i+1] *= 0.99f;
+						_radi[i] = magn*(_radi[i]/(_radi[i]+_radi[i+1]));
+						_radi[i+1] = magn - _radi[i];
+						_radi[i] *= 0.99f;
+						_radi[i+1] *= 0.99f;
 						i -= 2;
 						continue;
 					}
 
 					if (tt == TangentType.InnerRightLeft) {
-						a2[i] = sigma-a;
-						a1[i+1] = sigma-a + (float)Math.PI;
-						dir[i] = true;
+						_a2[i] = sigma-a;
+						_a1[i+1] = sigma-a + (float)Math.PI;
+						_dir[i] = true;
 					} else {
-						a2[i] = sigma+a;
-						a1[i+1] = sigma+a + (float)Math.PI;
-						dir[i] = false;
+						_a2[i] = sigma+a;
+						_a1[i+1] = sigma+a + (float)Math.PI;
+						_dir[i] = false;
 					}
 				} else {
 					float sigma;
 					float a;
 
 					//Calculate angles to the next circle and angles for the outer tangents
-					if (!CalculateCircleOuter(vs[i], vs[i+1], radi[i], radi[i+1], out a, out sigma)) {
+					if (!CalculateCircleOuter(vs[i], vs[i+1], _radi[i], _radi[i+1], out a, out sigma)) {
 						//Failed, try modifying radiuses
 						if (i == vs.Count-2) {
 							//The last circle has a fixed radius at 0, don't modify it
-							radi[i] = (vs[i+1]-vs[i]).magnitude;
-							radi[i] *= 0.99f;
+							_radi[i] = (vs[i+1]-vs[i]).magnitude;
+							_radi[i] *= 0.99f;
 							i -= 1;
 						} else {
-							if (radi[i] > radi[i+1]) {
-								radi[i+1] = radi[i] - (vs[i+1]-vs[i]).magnitude;
+							if (_radi[i] > _radi[i+1]) {
+								_radi[i+1] = _radi[i] - (vs[i+1]-vs[i]).magnitude;
 							} else {
-								radi[i+1] = radi[i] + (vs[i+1]-vs[i]).magnitude;
+								_radi[i+1] = _radi[i] + (vs[i+1]-vs[i]).magnitude;
 							}
-							radi[i+1] *= 0.99f;
+							_radi[i+1] *= 0.99f;
 						}
 
 
@@ -242,13 +242,13 @@ namespace Pathfinding {
 					}
 
 					if (tt == TangentType.OuterRight) {
-						a2[i] = sigma-a;
-						a1[i+1] = sigma-a;
-						dir[i] = true;
+						_a2[i] = sigma-a;
+						_a1[i+1] = sigma-a;
+						_dir[i] = true;
 					} else {
-						a2[i] = sigma+a;
-						a1[i+1] = sigma+a;
-						dir[i] = false;
+						_a2[i] = sigma+a;
+						_a1[i+1] = sigma+a;
+						_dir[i] = false;
 					}
 				}
 			}
@@ -258,11 +258,11 @@ namespace Pathfinding {
 			if (detail < 1) detail = 1;
 			float step = (float)(2*Math.PI)/detail;
 			for (int i = 1; i < vs.Count-1; i++) {
-				float start = a1[i];
-				float end = a2[i];
-				float rad = radi[i];
+				float start = _a1[i];
+				float end = _a2[i];
+				float rad = _radi[i];
 
-				if (dir[i]) {
+				if (_dir[i]) {
 					if (end < start) end += (float)Math.PI*2;
 					for (float t = start; t < end; t += step) {
 						res.Add(new Vector3((float)Math.Cos(t), 0, (float)Math.Sin(t))*rad + vs[i]);
