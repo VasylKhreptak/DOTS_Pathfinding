@@ -3,7 +3,9 @@ using Entities.Authoring.Pathfinding;
 using Entities.Components;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -16,20 +18,25 @@ namespace Entities.Systems.Pathfinding
     [Obsolete("Obsolete")]
     public partial struct PathfindingSystem : ISystem
     {
-        private NavMeshQuery _navMeshQuery;
+        private NativeArray<NavMeshQuery> _navMeshQueries;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TickCount>();
 
-            _navMeshQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
+            _navMeshQueries = new NativeArray<NavMeshQuery>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
+
+            for (int i = 0; i < _navMeshQueries.Length; i++)
+                _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 10000);
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
-            _navMeshQuery.Dispose();
+            for (int i = 0; i < _navMeshQueries.Length; i++)
+                _navMeshQueries[i].Dispose();
+
+            _navMeshQueries.Dispose();
         }
 
         [BurstCompile]
@@ -41,7 +48,7 @@ namespace Entities.Systems.Pathfinding
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
-                NavMeshQuery = _navMeshQuery
+                NavMeshQueries = _navMeshQueries,
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -52,7 +59,11 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
             public TickCount TickCount;
-            [ReadOnly] public NativeArray<NavMeshQuery> _navMeshQueries;
+
+            [NativeDisableContainerSafetyRestriction]
+            [NativeDisableParallelForRestriction] public NativeArray<NavMeshQuery> NavMeshQueries;
+
+            [NativeSetThreadIndex] private int _threadIndex;
 
             public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, DynamicBuffer<PathWaypoint> waypointsBuffer,
                 in Agent agent)
@@ -67,16 +78,16 @@ namespace Entities.Systems.Pathfinding
 
                 float3 extents = new float3(10000);
 
-                NavMeshLocation startLocation = NavMeshQuery.MapLocation(localToWorld.Position, extents, agent.AgentID);
-                NavMeshLocation endLocation = NavMeshQuery.MapLocation(destination.Value, extents, agent.AgentID);
+                NavMeshLocation startLocation = NavMeshQueries[_threadIndex].MapLocation(localToWorld.Position, extents, agent.AgentID);
+                NavMeshLocation endLocation = NavMeshQueries[_threadIndex].MapLocation(destination.Value, extents, agent.AgentID);
 
-                if (!NavMeshQuery.IsValid(startLocation) || !NavMeshQuery.IsValid(endLocation))
+                if (!NavMeshQueries[_threadIndex].IsValid(startLocation) || !NavMeshQueries[_threadIndex].IsValid(endLocation))
                 {
                     waypointsBuffer.Clear();
                     return;
                 }
 
-                PathQueryStatus status = NavMeshQuery.BeginFindPath(startLocation, endLocation);
+                PathQueryStatus status = NavMeshQueries[_threadIndex].BeginFindPath(startLocation, endLocation);
 
                 if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                 {
@@ -84,7 +95,7 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                status = NavMeshQuery.UpdateFindPath(10000, out int pathSize);
+                status = NavMeshQueries[_threadIndex].UpdateFindPath(10000, out int pathSize);
 
                 if (status != PathQueryStatus.Success)
                 {
@@ -92,7 +103,7 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                status = NavMeshQuery.EndFindPath(out pathSize);
+                status = NavMeshQueries[_threadIndex].EndFindPath(out pathSize);
 
                 if ((status & PathQueryStatus.Success) == 0)
                 {
@@ -123,10 +134,10 @@ namespace Entities.Systems.Pathfinding
 
                 int straightPathCount = 0;
 
-                NavMeshQuery.GetPathResult(polygonIds);
+                NavMeshQueries[_threadIndex].GetPathResult(polygonIds);
 
                 status = PathUtils
-                    .FindStraightPath(NavMeshQuery,
+                    .FindStraightPath(NavMeshQueries[_threadIndex],
                         startLocation.position,
                         endLocation.position,
                         polygonIds,
