@@ -1,6 +1,7 @@
 ﻿using System;
 using Entities.Authoring.Pathfinding;
 using Entities.Components;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -10,70 +11,93 @@ using UnityEngine.Experimental.AI;
 
 namespace Entities.Systems.Pathfinding
 {
+    [BurstCompile]
     [DisableAutoCreation]
+    [Obsolete("Obsolete")]
     public partial struct PathfindingSystem : ISystem
     {
+        private NavMeshQuery _navMeshQuery;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TickCount>();
+
+            _navMeshQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
         }
 
-        [Obsolete("Obsolete")]
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            _navMeshQuery.Dispose();
+        }
+
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
 
-            foreach ((RefRO<LocalToWorld> localToWorld, RefRO<Destination> destination, RefRW<PathFinder> pathFinder, DynamicBuffer<PathWaypoint> waypointsBuffer,
-                         RefRO<Agent> agent) in
-                     SystemAPI.Query<RefRO<LocalToWorld>, RefRO<Destination>, RefRW<PathFinder>, DynamicBuffer<PathWaypoint>, RefRO<Agent>>())
+            PathfindingJob job = new PathfindingJob()
             {
-                if (state.WorldUnmanaged.Time.ElapsedTime > pathFinder.ValueRO.LastCalculationTime + pathFinder.ValueRO.CalculateInterval)
+                ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
+                TickCount = tickCount,
+                NavMeshQuery = _navMeshQuery
+            };
+
+            state.Dependency = job.ScheduleParallel(state.Dependency);
+        }
+
+        [BurstCompile]
+        private partial struct PathfindingJob : IJobEntity
+        {
+            public float ElapsedTime;
+            public TickCount TickCount;
+            [ReadOnly] public NativeArray<NavMeshQuery> _navMeshQueries;
+
+            public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, DynamicBuffer<PathWaypoint> waypointsBuffer,
+                in Agent agent)
+            {
+                if (ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
                 {
-                    pathFinder.ValueRW.LastCalculationTime = (float)state.WorldUnmanaged.Time.ElapsedTime;
-                    pathFinder.ValueRW.LastCalculationTickCount = tickCount.Value;
+                    pathFinder.LastCalculationTime = ElapsedTime;
+                    pathFinder.LastCalculationTickCount = TickCount.Value;
                 }
                 else
-                    continue;
-
-                NavMeshQuery query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), state.WorldUpdateAllocator, 10000);
+                    return;
 
                 float3 extents = new float3(10000);
 
-                NavMeshLocation startLocation = query.MapLocation(localToWorld.ValueRO.Position, extents, agent.ValueRO.AgentID);
-                NavMeshLocation endLocation = query.MapLocation(destination.ValueRO.Value, extents, agent.ValueRO.AgentID);
+                NavMeshLocation startLocation = NavMeshQuery.MapLocation(localToWorld.Position, extents, agent.AgentID);
+                NavMeshLocation endLocation = NavMeshQuery.MapLocation(destination.Value, extents, agent.AgentID);
 
-                if (!query.IsValid(startLocation) || !query.IsValid(endLocation))
+                if (!NavMeshQuery.IsValid(startLocation) || !NavMeshQuery.IsValid(endLocation))
                 {
-                    Debug.LogError("Is valid false");
                     waypointsBuffer.Clear();
-                    continue;
+                    return;
                 }
 
-                PathQueryStatus status = query.BeginFindPath(startLocation, endLocation);
+                PathQueryStatus status = NavMeshQuery.BeginFindPath(startLocation, endLocation);
 
                 if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                 {
-                    Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    continue;
+                    return;
                 }
 
-                status = query.UpdateFindPath(10000, out int pathSize);
+                status = NavMeshQuery.UpdateFindPath(10000, out int pathSize);
 
                 if (status != PathQueryStatus.Success)
                 {
-                    Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    continue;
+                    return;
                 }
 
-                status = query.EndFindPath(out pathSize);
+                status = NavMeshQuery.EndFindPath(out pathSize);
 
                 if ((status & PathQueryStatus.Success) == 0)
                 {
-                    Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    continue;
+                    return;
                 }
 
                 if (pathSize < 2)
@@ -81,20 +105,28 @@ namespace Entities.Systems.Pathfinding
                     waypointsBuffer.Clear();
                     waypointsBuffer.Add(new PathWaypoint { Value = startLocation.position });
                     waypointsBuffer.Add(new PathWaypoint { Value = endLocation.position });
-                    continue;
+                    return;
                 }
 
-                NativeArray<NavMeshLocation> result = CollectionHelper.CreateNativeArray<NavMeshLocation>(pathSize, state.WorldUpdateAllocator);
-                NativeArray<StraightPathFlags> flags = CollectionHelper.CreateNativeArray<StraightPathFlags>(pathSize, state.WorldUpdateAllocator);
-                NativeArray<float> vertexSize = CollectionHelper.CreateNativeArray<float>(pathSize, state.WorldUpdateAllocator);
-                NativeArray<PolygonId> polygonIds = CollectionHelper.CreateNativeArray<PolygonId>(pathSize + 1, state.WorldUpdateAllocator);
+                NativeArray<NavMeshLocation> result = new NativeArray<NavMeshLocation>(pathSize, Allocator.Temp);
+                NativeArray<StraightPathFlags> flags = new NativeArray<StraightPathFlags>(pathSize, Allocator.Temp);
+                NativeArray<float> vertexSize = new NativeArray<float>(pathSize, Allocator.Temp);
+                NativeArray<PolygonId> polygonIds = new NativeArray<PolygonId>(pathSize + 1, Allocator.Temp);
+
+                void DisposeTempCollections()
+                {
+                    result.Dispose();
+                    flags.Dispose();
+                    vertexSize.Dispose();
+                    polygonIds.Dispose();
+                }
 
                 int straightPathCount = 0;
 
-                query.GetPathResult(polygonIds);
+                NavMeshQuery.GetPathResult(polygonIds);
 
                 status = PathUtils
-                    .FindStraightPath(query,
+                    .FindStraightPath(NavMeshQuery,
                         startLocation.position,
                         endLocation.position,
                         polygonIds,
@@ -107,9 +139,9 @@ namespace Entities.Systems.Pathfinding
 
                 if (status != PathQueryStatus.Success)
                 {
-                    Debug.LogError("Status:  " + status);
                     waypointsBuffer.Clear();
-                    continue;
+                    DisposeTempCollections();
+                    return;
                 }
 
                 waypointsBuffer.Clear();
@@ -128,6 +160,8 @@ namespace Entities.Systems.Pathfinding
 
                     waypointsBuffer.Add(waypoint);
                 }
+
+                DisposeTempCollections();
             }
         }
     }
