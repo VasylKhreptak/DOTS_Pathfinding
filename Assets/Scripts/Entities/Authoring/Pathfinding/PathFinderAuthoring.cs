@@ -34,5 +34,6 @@ namespace Entities.Authoring.Pathfinding
         public float LastCalculationTime;
         public long LastCalculationTickCount;
         public float CalculateInterval;
+        public bool ForceCalculate;
     }
 }

@@ -69,10 +69,11 @@ namespace Entities.Systems.Pathfinding
             public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, DynamicBuffer<PathWaypoint> waypointsBuffer,
                 in Agent agent)
             {
-                if (ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
+                if (pathFinder.ForceCalculate || ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
                 {
                     pathFinder.LastCalculationTime = ElapsedTime;
                     pathFinder.LastCalculationTickCount = TickCount.Value;
+                    pathFinder.ForceCalculate = false;
                 }
                 else
                     return;
