@@ -92,7 +92,7 @@ namespace Entities.Systems.Pathfinding
 
                 NavMeshQuery query = NavMeshQueriesPtr[_threadIndex];
 
-                extents = new float3(1);
+                extents = new float3(0.01f);
                 startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
                 endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
 
