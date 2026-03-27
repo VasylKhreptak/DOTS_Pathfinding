@@ -77,6 +77,14 @@ namespace Entities.Systems.Pathfinding
                 else
                     return;
 
+                if (math.distancesq(localToWorld.Position, destination.Value) < 0.0001f)
+                {
+                    waypointsBuffer.Clear();
+                    waypointsBuffer.Add(new PathWaypoint() { Value = localToWorld.Position });
+                    waypointsBuffer.Add(new PathWaypoint() { Value = destination.Value });
+                    return;
+                }
+
                 float3 extents = new float3(10000);
 
                 NavMeshQuery query = NavMeshQueriesPtr[_threadIndex];
