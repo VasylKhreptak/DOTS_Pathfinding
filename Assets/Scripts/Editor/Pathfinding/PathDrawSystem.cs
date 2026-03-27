@@ -10,8 +10,6 @@ namespace Editor.Pathfinding
     {
         protected override void OnUpdate()
         {
-            float deltaTime = SystemAPI.Time.DeltaTime;
-
             foreach (DynamicBuffer<PathWaypoint> waypoints in SystemAPI.Query<DynamicBuffer<PathWaypoint>>())
             {
                 if (waypoints.Length < 2)
@@ -22,7 +20,7 @@ namespace Editor.Pathfinding
                     float3 a = waypoints[i].Value;
                     float3 b = waypoints[i + 1].Value;
 
-                    Debug.DrawLine(a, b, Color.green, deltaTime);
+                    Debug.DrawLine(a, b, Color.green);
                 }
             }
         }
