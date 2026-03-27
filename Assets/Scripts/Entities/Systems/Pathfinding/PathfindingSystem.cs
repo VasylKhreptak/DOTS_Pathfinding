@@ -86,12 +86,27 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                float3 extents = new float3(10000);
+                float3 extents;
+                NavMeshLocation startLocation;
+                NavMeshLocation endLocation;
 
                 NavMeshQuery query = NavMeshQueriesPtr[_threadIndex];
 
-                NavMeshLocation startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
-                NavMeshLocation endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
+                extents = new float3(1);
+                startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
+                endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
+
+                if (query.IsValid(startLocation) == false && query.IsValid(endLocation) == false)
+                {
+                    waypointsBuffer.Clear();
+                    waypointsBuffer.Add(new PathWaypoint() { Value = localToWorld.Position });
+                    waypointsBuffer.Add(new PathWaypoint() { Value = destination.Value });
+                    return;
+                }
+
+                extents = new float3(10000);
+                startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
+                endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
 
                 if (!query.IsValid(startLocation) || !query.IsValid(endLocation))
                 {
