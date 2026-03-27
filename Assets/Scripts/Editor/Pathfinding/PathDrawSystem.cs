@@ -3,10 +3,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Entities.Systems.Pathfinding
+namespace Editor.Pathfinding
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
-    [DisableAutoCreation]
     public partial class PathDrawSystem : SystemBase
     {
         protected override void OnUpdate()

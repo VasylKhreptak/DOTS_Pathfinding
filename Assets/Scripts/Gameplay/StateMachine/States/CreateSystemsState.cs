@@ -12,7 +12,6 @@ using Unity.Entities;
 using VContainer;
 using NavMeshBakeSystem = Entities.Systems.Pathfinding.NavMeshBakeSystem;
 using NavMeshObstacleSystem = Entities.Systems.Pathfinding.NavMeshObstacleSystem;
-using PathDrawSystem = Entities.Systems.Pathfinding.PathDrawSystem;
 using PathfindingSystem = Entities.Systems.Pathfinding.PathfindingSystem;
 
 namespace Gameplay.StateMachine.States
@@ -99,9 +98,6 @@ namespace Gameplay.StateMachine.States
             CreateSystem<PathfindingSystem, LateUpdateSystemGroup>();
             CreateSystem<RadiusModifierSystem, LateUpdateSystemGroup>();
             CreateSystem<SmoothModifierSystem, LateUpdateSystemGroup>();
-#if UNITY_EDITOR
-            CreateSystemManaged<PathDrawSystem, LateUpdateSystemGroup>();
-#endif
         }
 
         private void CreateSystem<T, TGroup>() where T : unmanaged, ISystem where TGroup : ComponentSystemGroup
