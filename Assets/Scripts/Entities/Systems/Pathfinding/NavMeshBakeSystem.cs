@@ -208,8 +208,6 @@ namespace Entities.Systems.Pathfinding
 
             await UniTask.Yield(token);
 
-            Debug.LogError("Collected sources count: " + _sourcesNativeBuffer.Length);
-
             NavMeshBuildSource source = default;
 
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
