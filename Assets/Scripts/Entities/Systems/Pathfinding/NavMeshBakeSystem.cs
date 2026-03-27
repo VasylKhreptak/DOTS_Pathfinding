@@ -34,7 +34,7 @@ namespace Entities.Systems.Pathfinding
     public partial class NavMeshBakeSystem : SystemBase
     {
         private const float BakeInterval = 2f;
-        private const float Range = 100f;
+        private const float Range = 500f;
         private const int InitialSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 
@@ -110,29 +110,6 @@ namespace Entities.Systems.Pathfinding
 
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
-
-                foreach (NavMeshBuildSource navMeshBuildSource in _sourcesBuffer)
-                {
-                    Vector3 center = navMeshBuildSource.transform.GetPosition();
-                    Vector3 up = navMeshBuildSource.transform.GetUp();
-                    Vector3 right = navMeshBuildSource.transform.GetRight();
-                    Vector3 forward = navMeshBuildSource.transform.GetForward();
-                    Vector3 size = navMeshBuildSource.size;
-                    Color color = Color.green;
-
-                    if (navMeshBuildSource.sourceObject is Mesh)
-                    {
-                        color = Color.blue;
-                        size = navMeshBuildSource.transform.lossyScale;
-                    }
-
-                    if (navMeshBuildSource.shape == NavMeshBuildSourceShape.ModifierBox)
-                        color = Color.red;
-
-                    Debug.DrawLine(center - up * size.y / 2, center + up * size.y / 2, color, 2f);
-                    Debug.DrawLine(center - right * size.x / 2, center + right * size.x / 2, color, 2f);
-                    Debug.DrawLine(center - forward * size.z / 2, center + forward * size.z / 2, color, 2f);
-                }
 
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
             }
