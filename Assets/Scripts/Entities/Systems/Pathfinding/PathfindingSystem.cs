@@ -86,31 +86,35 @@ namespace Entities.Systems.Pathfinding
                     return;
                 }
 
-                float3 extents;
-                NavMeshLocation startLocation;
-                NavMeshLocation endLocation;
-
                 NavMeshQuery query = NavMeshQueriesPtr[_threadIndex];
 
-                extents = new float3(0.01f);
-                startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
-                endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
+                float3 extents = new float3(10000);
 
-                if (query.IsValid(startLocation) == false && query.IsValid(endLocation) == false)
+                NavMeshLocation startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
+
+                if (query.IsValid(startLocation) == false)
+                {
+                    waypointsBuffer.Clear();
+                    return;
+                }
+
+                NavMeshLocation endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
+
+                if (!query.IsValid(endLocation))
+                {
+                    waypointsBuffer.Clear();
+                    return;
+                }
+
+                float3 extentsTmp = new float3(5f);
+                NavMeshLocation startLocationTmp = query.MapLocation(localToWorld.Position, extentsTmp, agent.AgentID);
+                NavMeshLocation endLocationTmp = query.MapLocation(destination.Value, extentsTmp, agent.AgentID);
+
+                if (query.IsValid(startLocationTmp) == false && query.IsValid(endLocationTmp) == false)
                 {
                     waypointsBuffer.Clear();
                     waypointsBuffer.Add(new PathWaypoint() { Value = localToWorld.Position });
                     waypointsBuffer.Add(new PathWaypoint() { Value = destination.Value });
-                    return;
-                }
-
-                extents = new float3(10000);
-                startLocation = query.MapLocation(localToWorld.Position, extents, agent.AgentID);
-                endLocation = query.MapLocation(destination.Value, extents, agent.AgentID);
-
-                if (!query.IsValid(startLocation) || !query.IsValid(endLocation))
-                {
-                    waypointsBuffer.Clear();
                     return;
                 }
 
