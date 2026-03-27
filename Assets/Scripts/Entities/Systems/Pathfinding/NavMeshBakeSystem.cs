@@ -38,8 +38,8 @@ namespace Entities.Systems.Pathfinding
         private const int InitialSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 32;
 
-        private readonly List<NavMeshData> _navMeshDataBuffer = new List<NavMeshData>();
-        private readonly List<NavMeshBuildSource> _sourcesBuffer = new List<NavMeshBuildSource>();
+        private List<NavMeshData> _navMeshDataBuffer;
+        private List<NavMeshBuildSource> _sourcesBuffer;
         private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
         private NativeArray<int> _intCounter;
 
@@ -58,6 +58,8 @@ namespace Entities.Systems.Pathfinding
 
         protected override void OnCreate()
         {
+            _navMeshDataBuffer = new List<NavMeshData>(32);
+            _sourcesBuffer = new List<NavMeshBuildSource>(InitialSourcesBufferSize);
             _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
             _intCounter = new NativeArray<int>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
 
