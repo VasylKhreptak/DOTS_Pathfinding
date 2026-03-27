@@ -294,6 +294,9 @@ namespace Entities.Systems.Pathfinding
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
+
+            if (_sourcesBuffer.Capacity < targetCapacity)
+                _sourcesBuffer.Capacity = targetCapacity;
         }
 
         [BurstCompile]
