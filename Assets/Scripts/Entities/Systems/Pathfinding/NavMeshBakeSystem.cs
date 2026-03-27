@@ -135,7 +135,7 @@ namespace Entities.Systems.Pathfinding
                 }
             }
 
-            _navMeshDataBuffer.RemoveAll(navMeshData => !NavMeshSurface.activeSurfaces.Any(surface => surface.navMeshData == navMeshData));
+            _navMeshDataBuffer.RemoveAll(navMeshData => NavMeshSurface.activeSurfaces.All(surface => surface.navMeshData != navMeshData));
         }
 
         private async UniTask CollectSourcesAsync(Bounds bounds, LayerMask layerMask, NavMeshCollectGeometry geometry, bool generateLinks, int agentID, int defaultArea,
@@ -256,7 +256,7 @@ namespace Entities.Systems.Pathfinding
                     Counter = _intCounter
                 };
 
-                Dependency = calculatePhysicSourcesCountJob.Schedule(Dependency);
+                Dependency = calculatePhysicSourcesCountJob.ScheduleParallel(Dependency);
                 Dependency.Complete();
 
                 int physicsColliderCount = 0;
