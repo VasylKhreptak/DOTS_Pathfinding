@@ -236,8 +236,6 @@ namespace Entities.Systems.Pathfinding
 
         private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry, Bounds bounds, LayerMask layerMask)
         {
-            int targetCapacity;
-
             int modifierVolumesCount = SystemAPI.QueryBuilder().WithAll<NavMeshModifierVolume>().Build().CalculateEntityCount();
 
             int terrainsCount = CalculateTerrainSourcesCount(bounds, layerMask, geometry);
@@ -278,7 +276,7 @@ namespace Entities.Systems.Pathfinding
                     sourcesCount += _intCounter[i];
             }
 
-            targetCapacity = sourcesCount + modifierVolumesCount + terrainsCount;
+            int targetCapacity = sourcesCount + modifierVolumesCount + terrainsCount;
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
