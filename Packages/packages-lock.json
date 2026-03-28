@@ -132,7 +132,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.23",
+      "version": "1.8.25",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -259,6 +259,16 @@
       "source": "registry",
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.jobsprofiler": {
+      "version": "0.0.1-exp.9",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.burst": "1.8.25",
+        "com.unity.collections": "2.5.1"
       },
       "url": "https://packages.unity.com"
     },

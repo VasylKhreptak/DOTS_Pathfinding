@@ -33,6 +33,7 @@ namespace Entities.Systems.Pathfinding
     [DisableAutoCreation]
     public partial class NavMeshBakeSystem : SystemBase
     {
+        private const int BakeThreadsCount = 2;
         private const float BakeInterval = 2f;
         private const float Range = 100f;
         private const int InitialSourcesBufferSize = 1024 * 2;
@@ -109,6 +110,8 @@ namespace Entities.Systems.Pathfinding
             foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces.ToList())
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
+
+                settings.maxJobWorkers = BakeThreadsCount;
 
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);

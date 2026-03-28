@@ -2,6 +2,7 @@
   "dependencies": {
     "com.antonysze.custom-play-button": "https://github.com/antonysze/unity-custom-play-button.git",
     "com.marijnzwemmer.unity-toolbar-extender": "https://github.com/marijnz/unity-toolbar-extender.git",
+    "com.unity.jobsprofiler": "0.0.1-exp.9",
     "com.unity.addressables": "2.6.0",
     "com.unity.ai.navigation": "2.0.11",
     "com.unity.collab-proxy": "2.8.2",
