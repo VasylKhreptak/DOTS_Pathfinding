@@ -206,9 +206,9 @@ namespace Entities.Systems.Pathfinding
 
             Dependency = collectNavMeshModifierVolumeSourcesJob.ScheduleParallel(collectSourcesJobHandle);
 
-            Dependency.Complete();
+            await UniTask.WaitUntil(() => Dependency.IsCompleted, cancellationToken: token);
 
-            await UniTask.Yield(token);
+            await UniTask.SwitchToMainThread(token);
 
             NavMeshBuildSource source = default;
 
@@ -232,8 +232,6 @@ namespace Entities.Systems.Pathfinding
             await UniTask.Yield(token);
 
             CollectTerrainSources(bounds, layerMask, defaultArea, geometry, sources);
-
-            await UniTask.SwitchToMainThread(token);
         }
 
         private void EnsureSourceBufferCapacity(NavMeshCollectGeometry geometry, Bounds bounds, LayerMask layerMask)
@@ -245,9 +243,9 @@ namespace Entities.Systems.Pathfinding
             int terrainsCount = CalculateTerrainSourcesCount(bounds, layerMask, geometry);
 
             for (int i = 0; i < _intCounter.Length; i++)
-            {
                 _intCounter[i] = 0;
-            }
+
+            int sourcesCount = 0;
 
             if (geometry == NavMeshCollectGeometry.PhysicsColliders)
             {
@@ -261,14 +259,8 @@ namespace Entities.Systems.Pathfinding
                 Dependency = calculatePhysicSourcesCountJob.ScheduleParallel(Dependency);
                 Dependency.Complete();
 
-                int physicsColliderCount = 0;
-
                 for (int i = 0; i < _intCounter.Length; i++)
-                {
-                    physicsColliderCount += _intCounter[i];
-                }
-
-                targetCapacity = physicsColliderCount + modifierVolumesCount + terrainsCount;
+                    sourcesCount += _intCounter[i];
             }
             else
             {
@@ -282,15 +274,11 @@ namespace Entities.Systems.Pathfinding
                 Dependency = calculateMeshSourcesCountJob.ScheduleParallel(Dependency);
                 Dependency.Complete();
 
-                int meshSourcesCount = 0;
-
                 for (int i = 0; i < _intCounter.Length; i++)
-                {
-                    meshSourcesCount += _intCounter[i];
-                }
-
-                targetCapacity = meshSourcesCount + modifierVolumesCount + terrainsCount;
+                    sourcesCount += _intCounter[i];
             }
+
+            targetCapacity = sourcesCount + modifierVolumesCount + terrainsCount;
 
             if (_sourcesNativeBuffer.Capacity < targetCapacity)
                 _sourcesNativeBuffer.SetCapacity(targetCapacity);
