@@ -32,6 +32,7 @@ namespace Entities.Systems.Pathfinding
                 _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 10000);
         }
 
+        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
             for (int i = 0; i < _navMeshQueries.Length; i++)
