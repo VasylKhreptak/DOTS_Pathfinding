@@ -37,7 +37,7 @@ namespace Entities.Systems.Pathfinding
         private const float BakeInterval = 2f;
         private const float Range = 100f;
         private const int InitialSourcesBufferSize = 1024 * 2;
-        private const int NavMeshSourceConversionBatchCount = 32;
+        private const int NavMeshSourceConversionBatchCount = 64;
 
         private List<NavMeshData> _navMeshDataBuffer;
         private List<NavMeshBuildSource> _sourcesBuffer;
