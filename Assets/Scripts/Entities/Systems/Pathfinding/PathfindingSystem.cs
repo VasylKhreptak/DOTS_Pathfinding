@@ -25,6 +25,8 @@ namespace Entities.Systems.Pathfinding
         private NativeList<NavMeshQuery> _navMeshQueries;
         private NativeList<PathRequest> _pathRequests;
         private NativeArray<int> _parallelCounter;
+        private NativeQueue<int> _freeNavMeshQueryIndices;
+        private NativeHashMap<Entity, PathRequest> _entityToPathRequestMap;
 
         private ComponentLookup<LocalToWorld> _localToWorldLookup;
         private ComponentLookup<PathFinder> _pathFinderLookup;
@@ -40,10 +42,15 @@ namespace Entities.Systems.Pathfinding
 
             _navMeshQueries = new NativeList<NavMeshQuery>(InitialCapacity, Allocator.Persistent);
             _pathRequests = new NativeList<PathRequest>(InitialCapacity, Allocator.Persistent);
+            _freeNavMeshQueryIndices = new NativeQueue<int>(Allocator.Persistent);
             _parallelCounter = new NativeArray<int>(JobsUtility.JobWorkerCount + 1, Allocator.Persistent);
+            _entityToPathRequestMap = new NativeHashMap<Entity, PathRequest>(InitialCapacity, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
                 _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 1024);
+
+            for (int i = 0; i < _navMeshQueries.Length; i++)
+                _freeNavMeshQueryIndices.Enqueue(i);
 
             _localToWorldLookup = state.GetComponentLookup<LocalToWorld>(true);
             _pathFinderLookup = state.GetComponentLookup<PathFinder>();
@@ -62,23 +69,18 @@ namespace Entities.Systems.Pathfinding
             _navMeshQueries.Dispose();
             _pathRequests.Dispose();
             _parallelCounter.Dispose();
+            _freeNavMeshQueryIndices.Dispose();
+            _entityToPathRequestMap.Dispose();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             UpdateLookups(ref state);
-
-            JobHandle makePathRequestsOnDemandHandle = MakePathRequestsOnTime(ref state, state.Dependency);
-            int requestsCount = EnsureContainersCapacity(ref state, makePathRequestsOnDemandHandle);
-            JobHandle updatePathRequestsHandle = UpdatePathRequests(ref state, requestsCount, state.Dependency);
-            // JobHandle processPathRequestsHandle = ProcessPathRequests(updatePathRequestsHandle);
-            // JobHandle cleanupPathRequestsHandle = CleanupPathRequests(ref state, updatePathRequestsHandle);
-            state.Dependency = updatePathRequestsHandle;
-
-            state.Dependency.Complete();
-
-            Debug.LogError("Path requests count: " + _pathRequests.Length);
+            int requestsCount = EnsureContainersCapacity(ref state);
+            state.Dependency = CollectPathRequests(ref state, state.Dependency);
+            state.Dependency = ProcessPathRequests(requestsCount, state.Dependency);
+            state.Dependency = CleanupPathRequests(ref state, state.Dependency);
         }
 
         [BurstCompile]
@@ -93,18 +95,7 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private JobHandle MakePathRequestsOnTime(ref SystemState state, JobHandle dependency)
-        {
-            MakePathRequestsOnTimeJob job = new MakePathRequestsOnTimeJob()
-            {
-                ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime
-            };
-
-            return job.ScheduleParallel(dependency);
-        }
-
-        [BurstCompile]
-        private int EnsureContainersCapacity(ref SystemState state, JobHandle dependency)
+        private int EnsureContainersCapacity(ref SystemState state)
         {
             for (int i = 0; i < _parallelCounter.Length; i++)
                 _parallelCounter[i] = 0;
@@ -114,7 +105,7 @@ namespace Entities.Systems.Pathfinding
                 ParallelCounter = _parallelCounter
             };
 
-            state.Dependency = job.ScheduleParallel(dependency);
+            state.Dependency = job.ScheduleParallel(state.Dependency);
             state.Dependency.Complete();
 
             int targetCapacity = 0;
@@ -129,7 +120,10 @@ namespace Entities.Systems.Pathfinding
                 int itemsToAdd = targetCapacity - _navMeshQueries.Length;
 
                 for (int i = 0; i < itemsToAdd; i++)
+                {
                     _navMeshQueries.Add(new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 1024));
+                    _freeNavMeshQueryIndices.Enqueue(_navMeshQueries.Length - 1);
+                }
             }
 
             if (_pathRequests.Capacity < targetCapacity)
@@ -139,19 +133,20 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private JobHandle UpdatePathRequests(ref SystemState state, int requestsCount, JobHandle dependency)
+        private JobHandle CollectPathRequests(ref SystemState state, JobHandle dependency)
         {
-            UpdatePathRequestsJob updatePathRequestsJob = new UpdatePathRequestsJob()
+            CollectPathRequestsJob collectPathRequestsJob = new CollectPathRequestsJob()
             {
                 PathRequests = _pathRequests,
-                RequestsCount = requestsCount
+                EntityToPathRequestMap = _entityToPathRequestMap,
+                FreeNavMeshQueryIndices = _freeNavMeshQueryIndices
             };
 
-            return updatePathRequestsJob.Schedule(dependency);
+            return collectPathRequestsJob.Schedule(dependency);
         }
 
         [BurstCompile]
-        private unsafe JobHandle ProcessPathRequests(JobHandle dependency)
+        private unsafe JobHandle ProcessPathRequests(int requestsCount, JobHandle dependency)
         {
             ProcessPathRequestsJob processPathRequestsJob = new ProcessPathRequestsJob()
             {
@@ -165,29 +160,19 @@ namespace Entities.Systems.Pathfinding
                 DestinationLookup = _destinationLookup
             };
 
-            return processPathRequestsJob.Schedule(_pathRequests.Length, 64, dependency);
+            return processPathRequestsJob.Schedule(requestsCount, 64, dependency);
         }
 
         private JobHandle CleanupPathRequests(ref SystemState state, JobHandle dependency)
         {
             CleanupPathRequestsJob job = new CleanupPathRequestsJob()
             {
-                PathRequests = _pathRequests
+                PathRequests = _pathRequests,
+                EntityToPathRequestMap = _entityToPathRequestMap,
+                FreeNavMeshQueryIndices = _freeNavMeshQueryIndices,
             };
 
             return job.Schedule(dependency);
-        }
-
-        [BurstCompile]
-        private partial struct MakePathRequestsOnTimeJob : IJobEntity
-        {
-            public float ElapsedTime;
-
-            public void Execute(ref PathFinder pathFinder)
-            {
-                if (pathFinder.Status != PathStatus.InProgress && ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
-                    pathFinder.Status = PathStatus.Requested;
-            }
         }
 
         [BurstCompile]
@@ -205,59 +190,38 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private partial struct UpdatePathRequestsJob : IJobEntity
+        private partial struct CollectPathRequestsJob : IJobEntity
         {
-            public int RequestsCount;
             public NativeList<PathRequest> PathRequests;
+            public NativeQueue<int> FreeNavMeshQueryIndices;
+            public NativeHashMap<Entity, PathRequest> EntityToPathRequestMap;
 
             public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, Entity entity)
             {
-                // for (int i = 0; i < PathRequests.Length; i++)
-                // {
-                //     PathRequest request = PathRequests[i];
-                //
-                //     if (request.Entity == entity && request.Status == PathStatus.Requested)
-                //     {
-                //         request.StartPosition = localToWorld.Position;
-                //         request.EndPosition = destination.Value;
-                //         return;
-                //     }
-                // }
+                if (EntityToPathRequestMap.ContainsKey(entity))
+                {
+                    PathRequest pathRequest = EntityToPathRequestMap[entity];
+
+                    pathRequest.StartPosition = localToWorld.Position;
+                    pathRequest.EndPosition = destination.Value;
+
+                    EntityToPathRequestMap[entity] = pathRequest;
+                    return;
+                }
 
                 if (pathFinder.Status == PathStatus.Requested)
                 {
-                    // int freeQuerryIndex = -1;
-                    //
-                    // for (int i = 0; i < RequestsCount; i++)
-                    // {
-                    //     bool isIndexFree = true;
-                    //
-                    //     for (int j = 0; j < PathRequests.Length; j++)
-                    //     {
-                    //         if (i == PathRequests[j].QueryIndex)
-                    //         {
-                    //             isIndexFree = false;
-                    //             break;
-                    //         }
-                    //     }
-                    //
-                    //     if (isIndexFree)
-                    //     {
-                    //         freeQuerryIndex = i;
-                    //         break;
-                    //     }
-                    // }
-
                     PathRequest pathRequest = new PathRequest()
                     {
                         StartPosition = localToWorld.Position,
                         EndPosition = destination.Value,
                         Entity = entity,
-                        QueryIndex = -1,
+                        QueryIndex = FreeNavMeshQueryIndices.Dequeue(),
                         Status = PathStatus.Requested
                     };
 
-                    // PathRequests.AddNoResize(pathRequest);
+                    PathRequests.AddNoResize(pathRequest);
+                    EntityToPathRequestMap.TryAdd(entity, pathRequest);
                 }
             }
         }
@@ -267,14 +231,14 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
             public TickCount TickCount;
-            [NativeDisableParallelForRestriction] public NativeList<PathRequest> PathRequests;
+            public NativeList<PathRequest> PathRequests;
 
             [ReadOnly] public ComponentLookup<LocalToWorld> LocalToWorldLookup;
-            public ComponentLookup<PathFinder> PathFinderLookup;
             [ReadOnly] public ComponentLookup<Agent> AgentLookup;
+            [ReadOnly] public ComponentLookup<Destination> DestinationLookup;
+            public ComponentLookup<PathFinder> PathFinderLookup;
             public BufferLookup<PathWaypoint> PathWaypointsLookup;
             public EntityStorageInfoLookup EntityLookup;
-            [ReadOnly] public ComponentLookup<Destination> DestinationLookup;
 
             [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
@@ -466,12 +430,20 @@ namespace Entities.Systems.Pathfinding
         private struct CleanupPathRequestsJob : IJob
         {
             public NativeList<PathRequest> PathRequests;
+            public NativeQueue<int> FreeNavMeshQueryIndices;
+            public NativeHashMap<Entity, PathRequest> EntityToPathRequestMap;
 
             public void Execute()
             {
                 for (int i = PathRequests.Length - 1; i >= 0; i--)
+                {
                     if (ShouldRemove(PathRequests[i]))
+                    {
                         PathRequests.RemoveAtSwapBack(i);
+                        FreeNavMeshQueryIndices.Enqueue(PathRequests[i].QueryIndex);
+                        EntityToPathRequestMap.Remove(PathRequests[i].Entity);
+                    }
+                }
             }
 
             private bool ShouldRemove(PathRequest request) => request.Status == PathStatus.Success || request.Status == PathStatus.Failure;
