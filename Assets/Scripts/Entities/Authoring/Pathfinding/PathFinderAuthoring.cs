@@ -31,9 +31,17 @@ namespace Entities.Authoring.Pathfinding
 
     public struct PathFinder : IComponentData, IEnableableComponent
     {
+        public PathStatus Status;
         public float LastCalculationTime;
         public long LastCalculationTickCount;
         public float CalculateInterval;
-        public bool ForceCalculate;
+    }
+
+    public enum PathStatus
+    {
+        Requested,
+        InProgress,
+        Success,
+        Failure
     }
 }

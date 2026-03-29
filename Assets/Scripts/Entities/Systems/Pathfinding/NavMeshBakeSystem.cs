@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -23,6 +24,7 @@ using UnityEngine.AI;
 using BoxCollider = Unity.Physics.BoxCollider;
 using CapsuleCollider = Unity.Physics.CapsuleCollider;
 using Collider = Unity.Physics.Collider;
+using Debug = UnityEngine.Debug;
 using NavMeshModifier = Entities.Bakers.Pathfinding.NavMeshModifier;
 using NavMeshModifierVolume = Entities.Bakers.Pathfinding.NavMeshModifierVolume;
 using SphereCollider = Unity.Physics.SphereCollider;
@@ -35,7 +37,7 @@ namespace Entities.Systems.Pathfinding
     {
         private const int BakeThreadsCount = 2;
         private const float BakeInterval = 2f;
-        private const float Range = 100f;
+        private const float Range = 500f;
         private const int InitialSourcesBufferSize = 1024 * 2;
         private const int NavMeshSourceConversionBatchCount = 64;
 
@@ -113,10 +115,22 @@ namespace Entities.Systems.Pathfinding
 
                 settings.maxJobWorkers = BakeThreadsCount;
 
+                Stopwatch stopwatch = Stopwatch.StartNew();
+
                 await CollectSourcesAsync(bounds, navMeshSurface.layerMask, navMeshSurface.useGeometry, false, settings.agentTypeID, navMeshSurface.defaultArea,
                     _sourcesBuffer, token);
 
+                stopwatch.Stop();
+
+                Debug.LogError("Collect sources duration: " + stopwatch.Elapsed.TotalSeconds);
+
+                stopwatch = Stopwatch.StartNew();
+
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
+
+                stopwatch.Stop();
+
+                Debug.LogError("Update nav mesh data duration: " + stopwatch.Elapsed.TotalSeconds);
             }
 
             _isBaking = false;
