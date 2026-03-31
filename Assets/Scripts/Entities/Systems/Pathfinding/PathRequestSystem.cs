@@ -26,7 +26,10 @@ namespace Entities.Systems.Pathfinding
 
             public void Execute(ref PathFinder pathFinder)
             {
-                if (pathFinder.Status != PathStatus.InProgress && ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
+                if (pathFinder.Status == PathStatus.Requested || pathFinder.Status == PathStatus.InProgress)
+                    return;
+
+                if (ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
                     pathFinder.Status = PathStatus.Requested;
             }
         }

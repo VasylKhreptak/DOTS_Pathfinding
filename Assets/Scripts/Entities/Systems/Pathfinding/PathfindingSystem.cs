@@ -7,7 +7,6 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -19,45 +18,26 @@ namespace Entities.Systems.Pathfinding
     [Obsolete("Obsolete")]
     public partial struct PathfindingSystem : ISystem
     {
-        private const int InitialCapacity = 256;
+        private const int InitialQueriesCount = 256;
         private const int MaxPathIterations = 128;
 
         private NativeList<NavMeshQuery> _navMeshQueries;
-        private NativeList<PathRequest> _pathRequests;
-        private NativeArray<int> _parallelCounter;
         private NativeQueue<int> _freeNavMeshQueryIndices;
-        private NativeHashMap<Entity, PathRequest> _entityToPathRequestMap;
-
-        private ComponentLookup<LocalToWorld> _localToWorldLookup;
-        private ComponentLookup<PathFinder> _pathFinderLookup;
-        private ComponentLookup<Agent> _agentLookup;
-        private BufferLookup<PathWaypoint> _pathWaypointsLookup;
-        private EntityStorageInfoLookup _entityLookup;
-        private ComponentLookup<Destination> _destinationLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TickCount>();
+            state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
 
-            _navMeshQueries = new NativeList<NavMeshQuery>(InitialCapacity, Allocator.Persistent);
-            _pathRequests = new NativeList<PathRequest>(InitialCapacity, Allocator.Persistent);
+            _navMeshQueries = new NativeList<NavMeshQuery>(InitialQueriesCount, Allocator.Persistent);
             _freeNavMeshQueryIndices = new NativeQueue<int>(Allocator.Persistent);
-            _parallelCounter = new NativeArray<int>(JobsUtility.JobWorkerCount + 1, Allocator.Persistent);
-            _entityToPathRequestMap = new NativeHashMap<Entity, PathRequest>(InitialCapacity, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
-                _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 1024);
+                _navMeshQueries[i] = CreateNavMeshQuery();
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
                 _freeNavMeshQueryIndices.Enqueue(i);
-
-            _localToWorldLookup = state.GetComponentLookup<LocalToWorld>(true);
-            _pathFinderLookup = state.GetComponentLookup<PathFinder>();
-            _agentLookup = state.GetComponentLookup<Agent>(true);
-            _pathWaypointsLookup = state.GetBufferLookup<PathWaypoint>();
-            _entityLookup = state.GetEntityStorageInfoLookup();
-            _destinationLookup = state.GetComponentLookup<Destination>(true);
         }
 
         [BurstCompile]
@@ -67,242 +47,153 @@ namespace Entities.Systems.Pathfinding
                 _navMeshQueries[i].Dispose();
 
             _navMeshQueries.Dispose();
-            _pathRequests.Dispose();
-            _parallelCounter.Dispose();
             _freeNavMeshQueryIndices.Dispose();
-            _entityToPathRequestMap.Dispose();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            UpdateLookups(ref state);
-            int requestsCount = EnsureContainersCapacity(ref state);
-            state.Dependency = CollectPathRequests(ref state, state.Dependency);
-            state.Dependency = ProcessPathRequests(requestsCount, state.Dependency);
-            state.Dependency = CleanupPathRequests(ref state, state.Dependency);
+            EnsureQueriesSize(ref state);
+            state.Dependency = AssignQuerryIndices(ref state, state.Dependency);
+            state.Dependency = ProcessPathCalculation(ref state, state.Dependency);
+            state.Dependency = ReturnFreeIndices(ref state, state.Dependency);
+            NavMeshWorld.GetDefaultWorld().AddDependency(state.Dependency);
         }
 
         [BurstCompile]
-        private void UpdateLookups(ref SystemState state)
-        {
-            _localToWorldLookup.Update(ref state);
-            _pathFinderLookup.Update(ref state);
-            _agentLookup.Update(ref state);
-            _pathWaypointsLookup.Update(ref state);
-            _entityLookup.Update(ref state);
-            _destinationLookup.Update(ref state);
-        }
+        private NavMeshQuery CreateNavMeshQuery() => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 65535);
 
         [BurstCompile]
-        private int EnsureContainersCapacity(ref SystemState state)
+        private void EnsureQueriesSize(ref SystemState state)
         {
-            for (int i = 0; i < _parallelCounter.Length; i++)
-                _parallelCounter[i] = 0;
+            int pathfindersCount = SystemAPI.QueryBuilder().WithAll<PathFinder>().Build().CalculateEntityCount();
 
-            CalculatePathRequestsCountJob job = new CalculatePathRequestsCountJob()
+            if (_navMeshQueries.Capacity < pathfindersCount)
+                _navMeshQueries.Capacity = pathfindersCount;
+
+            int itemsToAdd = pathfindersCount - _navMeshQueries.Length;
+
+            for (int i = 0; i < itemsToAdd; i++)
             {
-                ParallelCounter = _parallelCounter
-            };
-
-            state.Dependency = job.ScheduleParallel(state.Dependency);
-            state.Dependency.Complete();
-
-            int targetCapacity = 0;
-
-            for (int i = 0; i < _parallelCounter.Length; i++)
-                targetCapacity += _parallelCounter[i];
-
-            if (_navMeshQueries.Capacity < targetCapacity)
-            {
-                _navMeshQueries.Capacity = targetCapacity;
-
-                int itemsToAdd = targetCapacity - _navMeshQueries.Length;
-
-                for (int i = 0; i < itemsToAdd; i++)
-                {
-                    _navMeshQueries.Add(new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 1024));
-                    _freeNavMeshQueryIndices.Enqueue(_navMeshQueries.Length - 1);
-                }
-            }
-
-            if (_pathRequests.Capacity < targetCapacity)
-                _pathRequests.Capacity = targetCapacity;
-
-            return targetCapacity;
-        }
-
-        [BurstCompile]
-        private JobHandle CollectPathRequests(ref SystemState state, JobHandle dependency)
-        {
-            CollectPathRequestsJob collectPathRequestsJob = new CollectPathRequestsJob()
-            {
-                PathRequests = _pathRequests,
-                EntityToPathRequestMap = _entityToPathRequestMap,
-                FreeNavMeshQueryIndices = _freeNavMeshQueryIndices
-            };
-
-            return collectPathRequestsJob.Schedule(dependency);
-        }
-
-        [BurstCompile]
-        private unsafe JobHandle ProcessPathRequests(int requestsCount, JobHandle dependency)
-        {
-            ProcessPathRequestsJob processPathRequestsJob = new ProcessPathRequestsJob()
-            {
-                PathRequests = _pathRequests,
-                NavMeshQueriesPtr = _navMeshQueries.GetUnsafePtr(),
-                LocalToWorldLookup = _localToWorldLookup,
-                PathFinderLookup = _pathFinderLookup,
-                AgentLookup = _agentLookup,
-                PathWaypointsLookup = _pathWaypointsLookup,
-                EntityLookup = _entityLookup,
-                DestinationLookup = _destinationLookup
-            };
-
-            return processPathRequestsJob.Schedule(requestsCount, 64, dependency);
-        }
-
-        private JobHandle CleanupPathRequests(ref SystemState state, JobHandle dependency)
-        {
-            CleanupPathRequestsJob job = new CleanupPathRequestsJob()
-            {
-                PathRequests = _pathRequests,
-                EntityToPathRequestMap = _entityToPathRequestMap,
-                FreeNavMeshQueryIndices = _freeNavMeshQueryIndices,
-            };
-
-            return job.Schedule(dependency);
-        }
-
-        [BurstCompile]
-        private partial struct CalculatePathRequestsCountJob : IJobEntity
-        {
-            [NativeDisableParallelForRestriction] public NativeArray<int> ParallelCounter;
-
-            [NativeSetThreadIndex] private int _threadIndex;
-
-            public void Execute(ref PathFinder pathFinder)
-            {
-                if (pathFinder.Status == PathStatus.Requested)
-                    ParallelCounter[_threadIndex]++;
+                _navMeshQueries.Add(CreateNavMeshQuery());
+                _freeNavMeshQueryIndices.Enqueue(_navMeshQueries.Length - 1);
             }
         }
 
         [BurstCompile]
-        private partial struct CollectPathRequestsJob : IJobEntity
+        private JobHandle AssignQuerryIndices(ref SystemState state, JobHandle dependency)
         {
-            public NativeList<PathRequest> PathRequests;
-            public NativeQueue<int> FreeNavMeshQueryIndices;
-            public NativeHashMap<Entity, PathRequest> EntityToPathRequestMap;
+            EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-            public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, Entity entity)
+            AssignQueryIndicesJob assignQueryIndicesJob = new AssignQueryIndicesJob()
             {
-                if (EntityToPathRequestMap.ContainsKey(entity))
+                FreeIndices = _freeNavMeshQueryIndices,
+                CommandBuffer = endSimulationECB
+            };
+
+            return assignQueryIndicesJob.Schedule(dependency);
+        }
+
+        [BurstCompile]
+        private unsafe JobHandle ProcessPathCalculation(ref SystemState state, JobHandle dependency)
+        {
+            TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
+
+            ProcessPathCalculationJob processPathCalculationJob = new ProcessPathCalculationJob()
+            {
+                ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
+                TickCount = tickCount,
+                NavMeshQueriesPtr = _navMeshQueries.GetUnsafePtr()
+            };
+            return processPathCalculationJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        private JobHandle ReturnFreeIndices(ref SystemState state, JobHandle dependency)
+        {
+            EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
+
+            ReturnFreeIndicesJob returnFreeIndicesJob = new ReturnFreeIndicesJob()
+            {
+                FreeIndices = _freeNavMeshQueryIndices.AsParallelWriter(),
+                CommandBuffer = endSimulationECB.AsParallelWriter()
+            };
+
+            return returnFreeIndicesJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(PathFinder))]
+        [WithNone(typeof(PathFinderQuerryIndex))]
+        private partial struct AssignQueryIndicesJob : IJobEntity
+        {
+            public NativeQueue<int> FreeIndices;
+            public EntityCommandBuffer CommandBuffer;
+
+            public void Execute(Entity entity)
+            {
+                PathFinderQuerryIndex pathFinderQuerryIndex = new PathFinderQuerryIndex()
                 {
-                    PathRequest pathRequest = EntityToPathRequestMap[entity];
+                    Value = FreeIndices.Dequeue()
+                };
 
-                    pathRequest.StartPosition = localToWorld.Position;
-                    pathRequest.EndPosition = destination.Value;
-
-                    EntityToPathRequestMap[entity] = pathRequest;
-                    return;
-                }
-
-                if (pathFinder.Status == PathStatus.Requested)
-                {
-                    PathRequest pathRequest = new PathRequest()
-                    {
-                        StartPosition = localToWorld.Position,
-                        EndPosition = destination.Value,
-                        Entity = entity,
-                        QueryIndex = FreeNavMeshQueryIndices.Dequeue(),
-                        Status = PathStatus.Requested
-                    };
-
-                    PathRequests.AddNoResize(pathRequest);
-                    EntityToPathRequestMap.TryAdd(entity, pathRequest);
-                }
+                CommandBuffer.AddComponent(entity, pathFinderQuerryIndex);
             }
         }
 
         [BurstCompile]
-        private unsafe struct ProcessPathRequestsJob : IJobParallelFor
+        private unsafe partial struct ProcessPathCalculationJob : IJobEntity
         {
             public float ElapsedTime;
             public TickCount TickCount;
-            public NativeList<PathRequest> PathRequests;
-
-            [ReadOnly] public ComponentLookup<LocalToWorld> LocalToWorldLookup;
-            [ReadOnly] public ComponentLookup<Agent> AgentLookup;
-            [ReadOnly] public ComponentLookup<Destination> DestinationLookup;
-            public ComponentLookup<PathFinder> PathFinderLookup;
-            public BufferLookup<PathWaypoint> PathWaypointsLookup;
-            public EntityStorageInfoLookup EntityLookup;
 
             [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
-            public void Execute(int index)
+            public void Execute(in LocalToWorld localToWorld, in Agent agent, in Destination destination, ref PathFinder pathFinder,
+                DynamicBuffer<PathWaypoint> pathWaypoints, in PathFinderQuerryIndex pathFinderQuerryIndex)
             {
-                PathRequest pathRequest = PathRequests[index];
+                NavMeshQuery query = NavMeshQueriesPtr[pathFinderQuerryIndex.Value];
 
-                if (EntityLookup.Exists(pathRequest.Entity) == false)
-                    return;
-
-                if (PathWaypointsLookup.TryGetBuffer(pathRequest.Entity, out DynamicBuffer<PathWaypoint> waypointsBuffer) == false)
-                    return;
-
-                RefRO<LocalToWorld> localToWorld = LocalToWorldLookup.GetRefRO(pathRequest.Entity);
-                RefRW<PathFinder> pathfinder = PathFinderLookup.GetRefRW(pathRequest.Entity);
-                RefRO<Agent> agent = AgentLookup.GetRefRO(pathRequest.Entity);
-                RefRO<Destination> destination = DestinationLookup.GetRefRO(pathRequest.Entity);
-
-                long tickCount = TickCount.Value;
-                float elapsedTime = ElapsedTime;
-
-                void UpdatePathfinderInfo(PathStatus status)
+                if (pathFinder.Status == PathStatus.Requested)
                 {
-                    pathfinder.ValueRW.LastCalculationTickCount = tickCount;
-                    pathfinder.ValueRW.LastCalculationTime = elapsedTime;
-                    pathfinder.ValueRW.Status = status;
-                }
+                    pathFinder.RequestStartPosition = localToWorld.Position;
+                    pathFinder.RequestEndPosition = destination.Value;
 
-                NavMeshQuery query = NavMeshQueriesPtr[pathRequest.QueryIndex];
-
-                if (pathRequest.Status == PathStatus.Requested)
-                {
-                    if (math.distancesq(localToWorld.ValueRO.Position, destination.ValueRO.Value) < 0.0001f)
+                    if (math.distancesq(localToWorld.Position, destination.Value) < 0.0001f)
                     {
-                        waypointsBuffer.Clear();
-                        waypointsBuffer.Add(new PathWaypoint() { Value = pathRequest.StartPosition });
-                        waypointsBuffer.Add(new PathWaypoint() { Value = pathRequest.EndPosition });
-                        UpdatePathfinderInfo(PathStatus.Success);
-                        pathRequest.Status = PathStatus.Success;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathWaypoints.Add(new PathWaypoint() { Value = pathFinder.RequestStartPosition });
+                        pathWaypoints.Add(new PathWaypoint() { Value = pathFinder.RequestEndPosition });
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.QueryStatus = PathQueryStatus.Success;
+                        pathFinder.Status = PathStatus.Success;
                         return;
                     }
 
                     float3 extents = new float3(10000);
 
-                    NavMeshLocation startLocation = query.MapLocation(pathRequest.StartPosition, extents, agent.ValueRO.AgentID);
+                    NavMeshLocation startLocation = query.MapLocation(pathFinder.RequestStartPosition, extents, agent.AgentID);
 
                     if (query.IsValid(startLocation) == false)
                     {
-                        waypointsBuffer.Clear();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.QueryStatus = PathQueryStatus.Failure;
+                        pathFinder.Status = PathStatus.Failure;
                         return;
                     }
 
-                    NavMeshLocation endLocation = query.MapLocation(pathRequest.EndPosition, extents, agent.ValueRO.AgentID);
+                    NavMeshLocation endLocation = query.MapLocation(pathFinder.RequestEndPosition, extents, agent.AgentID);
 
                     if (query.IsValid(endLocation) == false)
                     {
-                        waypointsBuffer.Clear();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.QueryStatus = PathQueryStatus.Failure;
+                        pathFinder.Status = PathStatus.Failure;
                         return;
                     }
 
@@ -310,30 +201,32 @@ namespace Entities.Systems.Pathfinding
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
-                        waypointsBuffer.Clear();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.QueryStatus = status;
+                        pathFinder.Status = PathStatus.Failure;
                         return;
                     }
 
-                    pathfinder.ValueRW.Status = PathStatus.InProgress;
-                    pathRequest.Status = PathStatus.InProgress;
-                    pathRequest.NavMeshStartPosition = startLocation.position;
-                    pathRequest.NavMeshEndPosition = endLocation.position;
-                    PathRequests[index] = pathRequest;
+                    pathFinder.Status = PathStatus.InProgress;
+                    pathFinder.QueryStatus = PathQueryStatus.InProgress;
+                    pathFinder.NavMeshStartPosition = startLocation.position;
+                    pathFinder.NavMeshEndPosition = endLocation.position;
+                    return;
                 }
 
-                if (pathRequest.Status == PathStatus.InProgress)
+                if (pathFinder.Status == PathStatus.InProgress)
                 {
                     PathQueryStatus status = query.UpdateFindPath(MaxPathIterations, out _);
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
-                        waypointsBuffer.Clear();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.Status = PathStatus.Failure;
+                        pathFinder.QueryStatus = status;
                         return;
                     }
 
@@ -342,23 +235,25 @@ namespace Entities.Systems.Pathfinding
 
                     status = query.EndFindPath(out int pathSize);
 
-                    if ((status & PathQueryStatus.Success) == 0)
+                    if (status != PathQueryStatus.Success)
                     {
-                        waypointsBuffer.Clear();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.Status = PathStatus.Failure;
+                        pathFinder.QueryStatus = status;
                         return;
                     }
 
                     if (pathSize < 2)
                     {
-                        waypointsBuffer.Clear();
-                        waypointsBuffer.Add(new PathWaypoint { Value = pathRequest.StartPosition });
-                        waypointsBuffer.Add(new PathWaypoint { Value = pathRequest.EndPosition });
-                        UpdatePathfinderInfo(PathStatus.Success);
-                        pathRequest.Status = PathStatus.Success;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathWaypoints.Add(new PathWaypoint { Value = pathFinder.RequestStartPosition });
+                        pathWaypoints.Add(new PathWaypoint { Value = pathFinder.RequestEndPosition });
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.Status = PathStatus.Success;
+                        pathFinder.QueryStatus = PathQueryStatus.Success;
                         return;
                     }
 
@@ -381,8 +276,8 @@ namespace Entities.Systems.Pathfinding
 
                     status = PathUtils
                         .FindStraightPath(query,
-                            pathRequest.NavMeshStartPosition,
-                            pathRequest.NavMeshEndPosition,
+                            pathFinder.NavMeshStartPosition,
+                            pathFinder.NavMeshEndPosition,
                             polygonIds,
                             pathSize,
                             ref result,
@@ -391,17 +286,17 @@ namespace Entities.Systems.Pathfinding
                             ref straightPathCount,
                             pathSize);
 
-                    if (status != PathQueryStatus.Success)
+                    if ((status & PathQueryStatus.Success) == 0)
                     {
-                        waypointsBuffer.Clear();
-                        DisposeTempCollections();
-                        UpdatePathfinderInfo(PathStatus.Failure);
-                        pathRequest.Status = PathStatus.Failure;
-                        PathRequests[index] = pathRequest;
+                        pathWaypoints.Clear();
+                        pathFinder.LastCalculationTickCount = TickCount.Value;
+                        pathFinder.LastCalculationTime = ElapsedTime;
+                        pathFinder.Status = PathStatus.Failure;
+                        pathFinder.QueryStatus = status;
                         return;
                     }
 
-                    waypointsBuffer.Clear();
+                    pathWaypoints.Clear();
 
                     for (int i = 0; i < result.Length; i++)
                     {
@@ -415,50 +310,30 @@ namespace Entities.Systems.Pathfinding
                             Value = location.position
                         };
 
-                        waypointsBuffer.Add(waypoint);
+                        pathWaypoints.Add(waypoint);
                     }
 
                     DisposeTempCollections();
-                    UpdatePathfinderInfo(PathStatus.Success);
-                    pathRequest.Status = PathStatus.Success;
-                    PathRequests[index] = pathRequest;
+                    pathFinder.LastCalculationTickCount = TickCount.Value;
+                    pathFinder.LastCalculationTime = ElapsedTime;
+                    pathFinder.Status = PathStatus.Success;
+                    pathFinder.QueryStatus = PathQueryStatus.Success;
                 }
             }
         }
 
         [BurstCompile]
-        private struct CleanupPathRequestsJob : IJob
+        [WithNone(typeof(LocalTransform))]
+        private partial struct ReturnFreeIndicesJob : IJobEntity
         {
-            public NativeList<PathRequest> PathRequests;
-            public NativeQueue<int> FreeNavMeshQueryIndices;
-            public NativeHashMap<Entity, PathRequest> EntityToPathRequestMap;
+            public NativeQueue<int>.ParallelWriter FreeIndices;
+            public EntityCommandBuffer.ParallelWriter CommandBuffer;
 
-            public void Execute()
+            public void Execute([EntityIndexInQuery] int querryIndex, in PathFinderQuerryIndex pathFinderQuerryIndex, Entity entity)
             {
-                for (int i = PathRequests.Length - 1; i >= 0; i--)
-                {
-                    if (ShouldRemove(PathRequests[i]))
-                    {
-                        PathRequests.RemoveAtSwapBack(i);
-                        FreeNavMeshQueryIndices.Enqueue(PathRequests[i].QueryIndex);
-                        EntityToPathRequestMap.Remove(PathRequests[i].Entity);
-                    }
-                }
+                FreeIndices.Enqueue(pathFinderQuerryIndex.Value);
+                CommandBuffer.RemoveComponent<PathFinderQuerryIndex>(querryIndex, entity);
             }
-
-            private bool ShouldRemove(PathRequest request) => request.Status == PathStatus.Success || request.Status == PathStatus.Failure;
         }
-    }
-
-    [Obsolete("Obsolete")]
-    public struct PathRequest
-    {
-        public float3 StartPosition;
-        public float3 EndPosition;
-        public float3 NavMeshStartPosition;
-        public float3 NavMeshEndPosition;
-        public Entity Entity;
-        public PathStatus Status;
-        public int QueryIndex;
     }
 }

@@ -1,5 +1,7 @@
 ﻿using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Experimental.AI;
 
 namespace Entities.Authoring.Pathfinding
 {
@@ -35,6 +37,17 @@ namespace Entities.Authoring.Pathfinding
         public float LastCalculationTime;
         public long LastCalculationTickCount;
         public float CalculateInterval;
+
+        public float3 RequestStartPosition;
+        public float3 RequestEndPosition;
+        public float3 NavMeshStartPosition;
+        public float3 NavMeshEndPosition;
+        public PathQueryStatus QueryStatus;
+    }
+
+    public struct PathFinderQuerryIndex : ICleanupComponentData
+    {
+        public int Value;
     }
 
     public enum PathStatus
