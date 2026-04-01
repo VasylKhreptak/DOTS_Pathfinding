@@ -94,7 +94,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 0
+    SerializedFormat: 2
     SerializedBytes: 
     ReferencedUnityObjects: []
     SerializedBytesString: 
@@ -452,15 +452,117 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 0
-    SerializedBytes: 0b01120000005f00730065006c00650063007400610062006c0065005700720061007000700065007200000000000101110000005f0061006e0069006d006100740069006f006e0043006f006e0066006900670073002f0000000001b2000000530079007300740065006d002e0043006f006c006c0065006300740069006f006e0073002e00470065006e0065007200690063002e00440069006300740069006f006e00610072007900600032005b005b00550049002e00570072006100700070006500720073002e0043006f00720065002e00530065006c00650063007400610062006c006500530074006100740065002c00200041007300730065006d0062006c0079002d004300530068006100720070005d002c005b00550049002e0041006e0069006d006100740069006f006e0073002e00530065006c00650063007400610062006c00650073002e005300630061006c00650041006e0069006d006100740069006f006e002b0041006e0069006d006100740069006f006e0043006f006e006600690067002c00200041007300730065006d0062006c0079002d004300530068006100720070005d005d002c0020006d00730063006f0072006c00690062000000000001010800000063006f006d00700061007200650072002f010000000170000000530079007300740065006d002e0043006f006c006c0065006300740069006f006e0073002e00470065006e0065007200690063002e0045006e0075006d0045007100750061006c0069007400790043006f006d0070006100720065007200600031005b005b00550049002e00570072006100700070006500720073002e0043006f00720065002e00530065006c00650063007400610062006c006500530074006100740065002c00200041007300730065006d0062006c0079002d004300530068006100720070005d005d002c0020006d00730063006f0072006c0069006200010000000600000000000000000705060200000000000000042e1d010200000024006b000300000000000000010102000000240076002f020000000149000000550049002e0041006e0069006d006100740069006f006e0073002e00530065006c00650063007400610062006c00650073002e005300630061006c00650041006e0069006d006100740069006f006e002b0041006e0069006d006100740069006f006e0043006f006e006600690067002c00200041007300730065006d0062006c0079002d00430053006800610072007000020000000301060000005f007300630061006c0065002f03000000012b00000055006e0069007400790045006e00670069006e0065002e0056006500630074006f00720033002c00200055006e0069007400790045006e00670069006e0065002e0043006f00720065004d006f00640075006c006500206666863f206666863f206666863f051d01050000005f00650061007300650008000000000000001f01090000005f006400750072006100740069006f006e00cdcccc3d0505042e1d010200000024006b000200000000000000010102000000240076003002000000030000000301060000005f007300630061006c0065003003000000203333733f203333733f203333733f051d01050000005f00650061007300650008000000000000001f01090000005f006400750072006100740069006f006e00cdcccc3d05050705
+    SerializedFormat: 2
+    SerializedBytes: 
     ReferencedUnityObjects:
     - {fileID: 3023658727930667460}
     SerializedBytesString: 
     Prefab: {fileID: 0}
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
-    SerializationNodes: []
+    SerializationNodes:
+    - Name: _selectableWrapper
+      Entry: 10
+      Data: 0
+    - Name: _animationConfigs
+      Entry: 7
+      Data: 0|System.Collections.Generic.Dictionary`2[[UI.Wrappers.Core.SelectableState,
+        Assembly-CSharp],[UI.Animations.Selectables.ScaleAnimation+AnimationConfig,
+        Assembly-CSharp]], mscorlib
+    - Name: comparer
+      Entry: 7
+      Data: 1|System.Collections.Generic.EnumEqualityComparer`1[[UI.Wrappers.Core.SelectableState,
+        Assembly-CSharp]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 12
+      Data: 2
+    - Name: 
+      Entry: 7
+      Data: 
+    - Name: $k
+      Entry: 3
+      Data: 3
+    - Name: $v
+      Entry: 7
+      Data: 2|UI.Animations.Selectables.ScaleAnimation+AnimationConfig, Assembly-CSharp
+    - Name: _scale
+      Entry: 7
+      Data: UnityEngine.Vector3, UnityEngine.CoreModule
+    - Name: 
+      Entry: 4
+      Data: 1.05
+    - Name: 
+      Entry: 4
+      Data: 1.05
+    - Name: 
+      Entry: 4
+      Data: 1.05
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: _ease
+      Entry: 3
+      Data: 8
+    - Name: _duration
+      Entry: 4
+      Data: 0.1
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 
+    - Name: $k
+      Entry: 3
+      Data: 2
+    - Name: $v
+      Entry: 7
+      Data: 3|UI.Animations.Selectables.ScaleAnimation+AnimationConfig, Assembly-CSharp
+    - Name: _scale
+      Entry: 7
+      Data: UnityEngine.Vector3, UnityEngine.CoreModule
+    - Name: 
+      Entry: 4
+      Data: 0.95
+    - Name: 
+      Entry: 4
+      Data: 0.95
+    - Name: 
+      Entry: 4
+      Data: 0.95
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: _ease
+      Entry: 3
+      Data: 8
+    - Name: _duration
+      Entry: 4
+      Data: 0.1
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
   _targetTransform: {fileID: 4621653827992574671}
   _defaultAnimationConfig:
     _scale: {x: 1, y: 1, z: 1}
@@ -479,7 +581,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 0
+    SerializedFormat: 2
     SerializedBytes: 
     ReferencedUnityObjects: []
     SerializedBytesString: 

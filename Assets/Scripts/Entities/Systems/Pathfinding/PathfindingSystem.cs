@@ -20,10 +20,6 @@ namespace Entities.Systems.Pathfinding
     [Obsolete("Obsolete")]
     public partial struct PathfindingSystem : ISystem
     {
-        private const int InitialQueriesCount = 256;
-        private const int MaxPathIterations = 128;
-        private const ushort PathNodePoolSize = 1024 * 4;
-
         private NativeList<NavMeshQuery> _navMeshQueries;
         private NativeQueue<int> _freeNavMeshQueryIndices;
         private NativeArray<int> _pathFindersCountParallelCounter;
@@ -33,7 +29,12 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _navMeshQueries = new NativeList<NavMeshQuery>(InitialQueriesCount, Allocator.Persistent);
+            if (SystemAPI.HasSingleton<PathfindingSettings>() == false)
+                state.EntityManager.CreateSingleton(PathfindingSettings.Default);
+
+            PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
+
+            _navMeshQueries = new NativeList<NavMeshQuery>(settings.InitialNavMeshQueriesBufferSize, Allocator.Persistent);
             _freeNavMeshQueryIndices = new NativeQueue<int>(Allocator.Persistent);
 
             _pathFindersCountParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
@@ -41,7 +42,7 @@ namespace Entities.Systems.Pathfinding
             _inProgressPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
-                _navMeshQueries[i] = CreateNavMeshQuery();
+                _navMeshQueries[i] = CreateNavMeshQuery(settings.PathNodePoolSize);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
                 _freeNavMeshQueryIndices.Enqueue(i);
@@ -52,6 +53,7 @@ namespace Entities.Systems.Pathfinding
             state.RequireForUpdate<TickCount>();
             state.RequireForUpdate<PathfindingSystemData>();
             state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
+            state.RequireForUpdate<PathfindingSettings>();
         }
 
         [BurstCompile]
@@ -82,7 +84,7 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private NavMeshQuery CreateNavMeshQuery() => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, PathNodePoolSize);
+        private NavMeshQuery CreateNavMeshQuery(int pathNodePoolSize) => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, pathNodePoolSize);
 
         [BurstCompile]
         private void EnsureQueriesSize(ref SystemState state)
@@ -94,9 +96,11 @@ namespace Entities.Systems.Pathfinding
 
             int itemsToAdd = pathfindersCount - _navMeshQueries.Length;
 
+            PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
+
             for (int i = 0; i < itemsToAdd; i++)
             {
-                _navMeshQueries.Add(CreateNavMeshQuery());
+                _navMeshQueries.Add(CreateNavMeshQuery(settings.PathNodePoolSize));
                 _freeNavMeshQueryIndices.Enqueue(_navMeshQueries.Length - 1);
             }
         }
@@ -119,12 +123,14 @@ namespace Entities.Systems.Pathfinding
         private unsafe JobHandle ProcessPathCalculation(ref SystemState state, JobHandle dependency)
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
+            PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
 
             ProcessPathCalculationJob processPathCalculationJob = new ProcessPathCalculationJob()
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
                 SystemData = SystemAPI.GetSingleton<PathfindingSystemData>(),
+                Settings = settings,
                 NavMeshQueriesPtr = _navMeshQueries.GetUnsafePtr()
             };
 
@@ -236,6 +242,7 @@ namespace Entities.Systems.Pathfinding
             public float ElapsedTime;
             public TickCount TickCount;
             public PathfindingSystemData SystemData;
+            public PathfindingSettings Settings;
 
             [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
@@ -303,7 +310,7 @@ namespace Entities.Systems.Pathfinding
 
                 if (pathFinder.Status == PathStatus.InProgress)
                 {
-                    PathQueryStatus status = query.UpdateFindPath(MaxPathIterations, out _);
+                    PathQueryStatus status = query.UpdateFindPath(Settings.MaxPathIterations, out _);
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
