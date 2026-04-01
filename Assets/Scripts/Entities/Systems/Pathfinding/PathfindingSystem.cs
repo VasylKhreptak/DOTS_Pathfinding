@@ -324,25 +324,23 @@ namespace Entities.Systems.Pathfinding
 
                     status = query.EndFindPath(out int pathSize);
 
-                    if (status != PathQueryStatus.Success)
+                    if ((status & PathQueryStatus.Success) == 0)
                     {
                         pathWaypoints.Clear();
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
                         pathFinder.Status = PathStatus.Failure;
-                        pathFinder.QueryStatus = status;
+                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         return;
                     }
 
                     if (pathSize < 2)
                     {
                         pathWaypoints.Clear();
-                        pathWaypoints.Add(new PathWaypoint { Value = pathFinder.RequestStartPosition });
-                        pathWaypoints.Add(new PathWaypoint { Value = pathFinder.RequestEndPosition });
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
-                        pathFinder.Status = PathStatus.Success;
-                        pathFinder.QueryStatus = PathQueryStatus.Success;
+                        pathFinder.Status = PathStatus.Failure;
+                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         return;
                     }
 
