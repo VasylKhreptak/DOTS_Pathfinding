@@ -268,7 +268,7 @@ namespace Entities.Systems.Pathfinding
                         return;
                     }
 
-                    float3 extents = new float3(10000);
+                    float3 extents = new float3(seeker.ClosestPointSearchDistance);
 
                     NavMeshLocation startLocation = query.MapLocation(seeker.RequestStartPosition, extents, agent.AgentID);
 

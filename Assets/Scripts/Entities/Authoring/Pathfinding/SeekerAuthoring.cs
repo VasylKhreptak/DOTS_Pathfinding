@@ -6,11 +6,16 @@ namespace Entities.Authoring.Pathfinding
 {
     public class SeekerAuthoring : MonoBehaviour
     {
+        [SerializeField] private float _closestPointSearchDistance = 100;
         [SerializeField] private float _calculateInterval;
 
         #region MonoBehaviour
 
-        private void OnValidate() => _calculateInterval = Mathf.Max(0.1f, _calculateInterval);
+        private void OnValidate()
+        {
+            _calculateInterval = Mathf.Max(0.1f, _calculateInterval);
+            _closestPointSearchDistance = Mathf.Max(1f, _closestPointSearchDistance);
+        }
 
         #endregion
 
@@ -22,6 +27,7 @@ namespace Entities.Authoring.Pathfinding
 
                 Seeker seeker = new Seeker
                 {
+                    ClosestPointSearchDistance = authoring._closestPointSearchDistance,
                     CalculateInterval = authoring._calculateInterval
                 };
 
@@ -32,6 +38,7 @@ namespace Entities.Authoring.Pathfinding
 
     public struct Seeker : IComponentData, IEnableableComponent
     {
+        public float ClosestPointSearchDistance;
         public float CalculateInterval;
 
         public PathStatus Status;
