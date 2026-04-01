@@ -35,12 +35,6 @@ namespace Entities.Systems.Pathfinding
     [DisableAutoCreation]
     public partial class NavMeshBakeSystem : SystemBase
     {
-        private const int BakeThreadsCount = 2;
-        private const float BakeInterval = 2f;
-        private const float Range = 100f;
-        private const int InitialSourcesBufferSize = 1024 * 2;
-        private const int NavMeshSourceConversionBatchCount = 64;
-
         private List<NavMeshData> _navMeshDataBuffer;
         private List<NavMeshBuildSource> _sourcesBuffer;
         private NativeList<UnmanagedNavMeshBuildSource> _sourcesNativeBuffer;
@@ -61,9 +55,14 @@ namespace Entities.Systems.Pathfinding
 
         protected override void OnCreate()
         {
+            if (SystemAPI.HasSingleton<NavMeshBakeSettings>() == false)
+                EntityManager.CreateSingleton(NavMeshBakeSettings.Default);
+
+            NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+
             _navMeshDataBuffer = new List<NavMeshData>(32);
-            _sourcesBuffer = new List<NavMeshBuildSource>(InitialSourcesBufferSize);
-            _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(InitialSourcesBufferSize, Allocator.Persistent);
+            _sourcesBuffer = new List<NavMeshBuildSource>(settings.InitialSourcesBufferSize);
+            _sourcesNativeBuffer = new NativeList<UnmanagedNavMeshBuildSource>(settings.InitialSourcesBufferSize, Allocator.Persistent);
             _intCounter = new NativeArray<int>(JobsUtility.MaxJobThreadCount, Allocator.Persistent);
 
             _navMeshModifierLookup = GetComponentLookup<NavMeshModifier>(true);
@@ -79,6 +78,7 @@ namespace Entities.Systems.Pathfinding
 
             RequireForUpdate<NavMeshBakeCenterTag>();
             RequireForUpdate<NavMeshBakeSystemData>();
+            RequireForUpdate<NavMeshBakeSettings>();
         }
 
         protected override void OnUpdate()
@@ -89,7 +89,9 @@ namespace Entities.Systems.Pathfinding
             if (_isBaking)
                 return;
 
-            if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + BakeInterval)
+            NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+
+            if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + settings.BakeInterval)
                 return;
 
             BakeNavMeshes(_cts.Token).Forget();
@@ -112,7 +114,9 @@ namespace Entities.Systems.Pathfinding
             Entity bakeCenterEntity = SystemAPI.GetSingletonEntity<NavMeshBakeCenterTag>();
             LocalToWorld localToWorld = EntityManager.GetComponentData<LocalToWorld>(bakeCenterEntity);
 
-            Bounds bounds = new Bounds(localToWorld.Position, Vector3.one * Range * 2f);
+            NavMeshBakeSettings navMeshBakeSettings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+
+            Bounds bounds = new Bounds(localToWorld.Position, Vector3.one * navMeshBakeSettings.Range * 2f);
 
             AssignNavMeshData();
 
@@ -120,7 +124,8 @@ namespace Entities.Systems.Pathfinding
             {
                 NavMeshBuildSettings settings = navMeshSurface.GetBuildSettings();
 
-                settings.maxJobWorkers = BakeThreadsCount;
+                if (navMeshBakeSettings.BakeThreadsCount != 0)
+                    settings.maxJobWorkers = navMeshBakeSettings.BakeThreadsCount;
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -254,7 +259,9 @@ namespace Entities.Systems.Pathfinding
 
                 sources.Add(source);
 
-                if (i % NavMeshSourceConversionBatchCount == 0)
+                NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+
+                if (i % settings.NavMeshSourceConversationBatchCount == 0)
                     await UniTask.Yield(token);
             }
 

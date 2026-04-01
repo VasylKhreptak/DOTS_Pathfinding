@@ -22,6 +22,7 @@ namespace Entities.Systems.Pathfinding
     {
         private const int InitialQueriesCount = 256;
         private const int MaxPathIterations = 128;
+        private const ushort PathNodePoolSize = 1024 * 4;
 
         private NativeList<NavMeshQuery> _navMeshQueries;
         private NativeQueue<int> _freeNavMeshQueryIndices;
@@ -81,7 +82,7 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private NavMeshQuery CreateNavMeshQuery() => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, 65535);
+        private NavMeshQuery CreateNavMeshQuery() => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, PathNodePoolSize);
 
         [BurstCompile]
         private void EnsureQueriesSize(ref SystemState state)

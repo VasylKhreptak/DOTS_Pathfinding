@@ -1,7 +1,6 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Experimental.AI;
 
 namespace Entities.Authoring.Pathfinding
 {
@@ -33,10 +32,11 @@ namespace Entities.Authoring.Pathfinding
 
     public struct PathFinder : IComponentData, IEnableableComponent
     {
+        public float CalculateInterval;
+
         public PathStatus Status;
         public float LastCalculationTime;
         public long LastCalculationTickCount;
-        public float CalculateInterval;
 
         public float3 RequestStartPosition;
         public float3 RequestEndPosition;
