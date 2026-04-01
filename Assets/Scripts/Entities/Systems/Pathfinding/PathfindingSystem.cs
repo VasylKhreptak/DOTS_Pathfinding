@@ -255,7 +255,6 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Add(new PathWaypoint() { Value = pathFinder.RequestEndPosition });
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
-                        pathFinder.QueryStatus = PathQueryStatus.Success;
                         pathFinder.Status = PathStatus.Success;
                         return;
                     }
@@ -269,7 +268,6 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Clear();
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
-                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         pathFinder.Status = PathStatus.Failure;
                         return;
                     }
@@ -281,7 +279,6 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Clear();
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
-                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         pathFinder.Status = PathStatus.Failure;
                         return;
                     }
@@ -293,13 +290,11 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Clear();
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
-                        pathFinder.QueryStatus = status;
                         pathFinder.Status = PathStatus.Failure;
                         return;
                     }
 
                     pathFinder.Status = PathStatus.InProgress;
-                    pathFinder.QueryStatus = PathQueryStatus.InProgress;
                     pathFinder.NavMeshStartPosition = startLocation.position;
                     pathFinder.NavMeshEndPosition = endLocation.position;
                     return;
@@ -315,7 +310,6 @@ namespace Entities.Systems.Pathfinding
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
                         pathFinder.Status = PathStatus.Failure;
-                        pathFinder.QueryStatus = status;
                         return;
                     }
 
@@ -330,7 +324,6 @@ namespace Entities.Systems.Pathfinding
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
                         pathFinder.Status = PathStatus.Failure;
-                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         return;
                     }
 
@@ -340,7 +333,6 @@ namespace Entities.Systems.Pathfinding
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
                         pathFinder.Status = PathStatus.Failure;
-                        pathFinder.QueryStatus = PathQueryStatus.Failure;
                         return;
                     }
 
@@ -379,7 +371,6 @@ namespace Entities.Systems.Pathfinding
                         pathFinder.LastCalculationTickCount = TickCount.Value;
                         pathFinder.LastCalculationTime = ElapsedTime;
                         pathFinder.Status = PathStatus.Failure;
-                        pathFinder.QueryStatus = status;
                         return;
                     }
 
@@ -404,7 +395,6 @@ namespace Entities.Systems.Pathfinding
                     pathFinder.LastCalculationTickCount = TickCount.Value;
                     pathFinder.LastCalculationTime = ElapsedTime;
                     pathFinder.Status = PathStatus.Success;
-                    pathFinder.QueryStatus = PathQueryStatus.Success;
                 }
             }
         }

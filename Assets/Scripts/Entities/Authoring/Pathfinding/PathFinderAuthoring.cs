@@ -42,7 +42,6 @@ namespace Entities.Authoring.Pathfinding
         public float3 RequestEndPosition;
         public float3 NavMeshStartPosition;
         public float3 NavMeshEndPosition;
-        public PathQueryStatus QueryStatus;
     }
 
     public struct PathFinderQuerryIndex : ICleanupComponentData
