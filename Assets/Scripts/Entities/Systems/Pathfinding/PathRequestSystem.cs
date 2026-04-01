@@ -24,13 +24,13 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
 
-            public void Execute(ref PathFinder pathFinder)
+            public void Execute(ref Seeker seeker)
             {
-                if (pathFinder.Status == PathStatus.Requested || pathFinder.Status == PathStatus.InProgress)
+                if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
-                if (ElapsedTime > pathFinder.LastCalculationTime + pathFinder.CalculateInterval)
-                    pathFinder.Status = PathStatus.Requested;
+                if (ElapsedTime > seeker.LastCalculationTime + seeker.CalculateInterval)
+                    seeker.Status = PathStatus.Requested;
             }
         }
     }

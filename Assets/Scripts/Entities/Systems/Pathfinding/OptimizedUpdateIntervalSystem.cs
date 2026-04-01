@@ -21,7 +21,7 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         public partial struct UpdateIntervalsJob : IJobEntity
         {
-            public void Execute(in LocalToWorld localToWorld, in Destination destination, ref PathFinder pathFinder, in OptimizedUpdateInterval optimizedUpdateInterval)
+            public void Execute(in LocalToWorld localToWorld, in Destination destination, ref Seeker seeker, in OptimizedUpdateInterval optimizedUpdateInterval)
             {
                 float distance = math.distance(localToWorld.Position, destination.Value);
 
@@ -33,7 +33,7 @@ namespace Entities.Systems.Pathfinding
 
                 newInterval = math.clamp(newInterval, optimizedUpdateInterval.MinInterval, optimizedUpdateInterval.MaxInterval);
 
-                pathFinder.CalculateInterval = newInterval;
+                seeker.CalculateInterval = newInterval;
             }
         }
     }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Entities.Authoring.Pathfinding
 {
-    public class PathFinderAuthoring : MonoBehaviour
+    public class SeekerAuthoring : MonoBehaviour
     {
         [SerializeField] private float _calculateInterval;
 
@@ -14,23 +14,23 @@ namespace Entities.Authoring.Pathfinding
 
         #endregion
 
-        private class PathFinderBaker : Baker<PathFinderAuthoring>
+        private class PathFinderBaker : Baker<SeekerAuthoring>
         {
-            public override void Bake(PathFinderAuthoring authoring)
+            public override void Bake(SeekerAuthoring authoring)
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                PathFinder pathFinder = new PathFinder
+                Seeker seeker = new Seeker
                 {
                     CalculateInterval = authoring._calculateInterval
                 };
 
-                AddComponent(entity, pathFinder);
+                AddComponent(entity, seeker);
             }
         }
     }
 
-    public struct PathFinder : IComponentData, IEnableableComponent
+    public struct Seeker : IComponentData, IEnableableComponent
     {
         public float CalculateInterval;
 
@@ -44,7 +44,7 @@ namespace Entities.Authoring.Pathfinding
         public float3 NavMeshEndPosition;
     }
 
-    public struct PathFinderQuerryIndex : ICleanupComponentData
+    public struct SeekerQuerryIndex : ICleanupComponentData
     {
         public int Value;
     }

@@ -36,29 +36,29 @@ namespace Entities.Systems.Pathfinding.Modifiers
         {
             public TickCount TickCount;
 
-            public void Execute(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
+            public void Execute(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
-                if (TickCount.Value != pathFinder.LastCalculationTickCount)
+                if (TickCount.Value != seeker.LastCalculationTickCount)
                     return;
 
                 switch (modifier.SmoothType)
                 {
                     case SmoothType.Simple:
-                        ApplySimpleModifier(in pathFinder, ref path, in modifier);
+                        ApplySimpleModifier(in seeker, ref path, in modifier);
                         break;
                     case SmoothType.Bezier:
-                        ApplyBezierModifier(in pathFinder, ref path, in modifier);
+                        ApplyBezierModifier(in seeker, ref path, in modifier);
                         break;
                     case SmoothType.OffsetSimple:
-                        ApplyOffsetModifier(in pathFinder, ref path, in modifier);
+                        ApplyOffsetModifier(in seeker, ref path, in modifier);
                         break;
                     case SmoothType.CurvedNonuniform:
-                        ApplyCurvedNonuniformModifier(in pathFinder, ref path, in modifier);
+                        ApplyCurvedNonuniformModifier(in seeker, ref path, in modifier);
                         break;
                 }
             }
 
-            private void ApplySimpleModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
+            private void ApplySimpleModifier(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 if (path.Length < 2)
                     return;
@@ -138,7 +138,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 subdivided.Dispose();
             }
 
-            private void ApplyBezierModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
+            private void ApplyBezierModifier(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 int subdivisions = modifier.Subdivisions;
 
@@ -190,7 +190,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 subdivided.Dispose();
             }
 
-            private void ApplyOffsetModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
+            private void ApplyOffsetModifier(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 if (path.Length <= 2 || modifier.Iterations <= 0)
                     return;
@@ -274,7 +274,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
                 subdivided2.Dispose();
             }
 
-            private void ApplyCurvedNonuniformModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
+            private void ApplyCurvedNonuniformModifier(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
                 if (modifier.MaxSegmentLength <= 0)
                     return;

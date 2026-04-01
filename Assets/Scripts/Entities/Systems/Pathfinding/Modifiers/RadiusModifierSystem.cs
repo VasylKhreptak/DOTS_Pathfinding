@@ -37,15 +37,15 @@ namespace Entities.Systems.Pathfinding.Modifiers
         {
             public TickCount TickCount;
 
-            public void Execute(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in RadiusModifier modifier)
+            public void Execute(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in RadiusModifier modifier)
             {
-                if (TickCount.Value != pathFinder.LastCalculationTickCount)
+                if (TickCount.Value != seeker.LastCalculationTickCount)
                     return;
 
-                ApplyRadiusModifier(in pathFinder, ref path, in modifier);
+                ApplyRadiusModifier(in seeker, ref path, in modifier);
             }
 
-            private void ApplyRadiusModifier(in PathFinder pathFinder, ref DynamicBuffer<PathWaypoint> path, in RadiusModifier modifier)
+            private void ApplyRadiusModifier(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in RadiusModifier modifier)
             {
                 if (path.Length < 3)
                     return;

@@ -5,7 +5,7 @@ namespace Entities.Authoring.Pathfinding
 {
     [RequireComponent(typeof(DestinationAuthoring))]
     [RequireComponent(typeof(PathAuthoring))]
-    [RequireComponent(typeof(PathFinderAuthoring))]
+    [RequireComponent(typeof(SeekerAuthoring))]
     public class AgentAuthoring : MonoBehaviour
     {
         private class AgentBaker : Baker<AgentAuthoring>
