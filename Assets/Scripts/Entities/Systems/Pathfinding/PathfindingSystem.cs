@@ -268,9 +268,7 @@ namespace Entities.Systems.Pathfinding
                         return;
                     }
 
-                    float3 extents = new float3(seeker.ClosestPointSearchDistance);
-
-                    NavMeshLocation startLocation = query.MapLocation(seeker.RequestStartPosition, extents, agent.AgentID);
+                    NavMeshLocation startLocation = query.MapLocation(seeker.RequestStartPosition, new float3(seeker.StartPositionSnappingDistance), agent.AgentID);
 
                     if (query.IsValid(startLocation) == false)
                     {
@@ -281,7 +279,7 @@ namespace Entities.Systems.Pathfinding
                         return;
                     }
 
-                    NavMeshLocation endLocation = query.MapLocation(seeker.RequestEndPosition, extents, agent.AgentID);
+                    NavMeshLocation endLocation = query.MapLocation(seeker.RequestEndPosition, new float3(seeker.DestinationPositionSnappingDistance), agent.AgentID);
 
                     if (query.IsValid(endLocation) == false)
                     {
