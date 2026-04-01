@@ -1,12 +1,14 @@
 ﻿using System;
 using Entities.Authoring.Pathfinding;
 using Entities.Components;
+using Entities.Components.Pathfinding;
 using Pathfinding;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -23,21 +25,32 @@ namespace Entities.Systems.Pathfinding
 
         private NativeList<NavMeshQuery> _navMeshQueries;
         private NativeQueue<int> _freeNavMeshQueryIndices;
+        private NativeArray<int> _pathFindersCountParallelCounter;
+        private NativeArray<int> _requestedPathsParallelCounter;
+        private NativeArray<int> _inProgressPathsParallelCounter;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<TickCount>();
-            state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
-
             _navMeshQueries = new NativeList<NavMeshQuery>(InitialQueriesCount, Allocator.Persistent);
             _freeNavMeshQueryIndices = new NativeQueue<int>(Allocator.Persistent);
+
+            _pathFindersCountParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
+            _requestedPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
+            _inProgressPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
                 _navMeshQueries[i] = CreateNavMeshQuery();
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
                 _freeNavMeshQueryIndices.Enqueue(i);
+
+            if (SystemAPI.HasSingleton<PathfindingSystemData>() == false)
+                state.EntityManager.CreateSingleton<PathfindingSystemData>();
+
+            state.RequireForUpdate<TickCount>();
+            state.RequireForUpdate<PathfindingSystemData>();
+            state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
         }
 
         [BurstCompile]
@@ -48,6 +61,13 @@ namespace Entities.Systems.Pathfinding
 
             _navMeshQueries.Dispose();
             _freeNavMeshQueryIndices.Dispose();
+
+            _pathFindersCountParallelCounter.Dispose();
+            _requestedPathsParallelCounter.Dispose();
+            _inProgressPathsParallelCounter.Dispose();
+
+            if (SystemAPI.TryGetSingletonEntity<PathfindingSystemData>(out Entity entity))
+                state.EntityManager.DestroyEntity(entity);
         }
 
         [BurstCompile]
@@ -57,7 +77,7 @@ namespace Entities.Systems.Pathfinding
             state.Dependency = AssignQuerryIndices(ref state, state.Dependency);
             state.Dependency = ProcessPathCalculation(ref state, state.Dependency);
             state.Dependency = ReturnFreeIndices(ref state, state.Dependency);
-            NavMeshWorld.GetDefaultWorld().AddDependency(state.Dependency);
+            state.Dependency = UpdatePathfindingSystemData(ref state, state.Dependency);
         }
 
         [BurstCompile]
@@ -103,8 +123,10 @@ namespace Entities.Systems.Pathfinding
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
+                SystemData = SystemAPI.GetSingleton<PathfindingSystemData>(),
                 NavMeshQueriesPtr = _navMeshQueries.GetUnsafePtr()
             };
+
             return processPathCalculationJob.ScheduleParallel(dependency);
         }
 
@@ -120,6 +142,72 @@ namespace Entities.Systems.Pathfinding
             };
 
             return returnFreeIndicesJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        private JobHandle UpdatePathfindingSystemData(ref SystemState state, JobHandle dependency)
+        {
+            JobHandle updatePathFindersCountHandle = CalculatePathFindersCount(ref state, dependency);
+            JobHandle updateRequestedPathsCountHandle = CalculateRequestedPathsCount(ref state, dependency);
+            JobHandle updateInProgressPathsCountHandle = CalculateInProgressPathsCount(ref state, dependency);
+            JobHandle calculationJobsHandle =
+                JobHandle.CombineDependencies(updatePathFindersCountHandle, updateRequestedPathsCountHandle, updateInProgressPathsCountHandle);
+            return UpdateSystemData(ref state, calculationJobsHandle);
+        }
+
+        [BurstCompile]
+        private JobHandle CalculatePathFindersCount(ref SystemState state, JobHandle dependency)
+        {
+            for (int i = 0; i < _pathFindersCountParallelCounter.Length; i++)
+                _pathFindersCountParallelCounter[i] = 0;
+
+            CalculatePathfindersCountJob calculatePathfindersCountJob = new CalculatePathfindersCountJob()
+            {
+                ParallelCounter = _pathFindersCountParallelCounter
+            };
+
+            return calculatePathfindersCountJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        private JobHandle CalculateRequestedPathsCount(ref SystemState state, JobHandle dependency)
+        {
+            for (int i = 0; i < _requestedPathsParallelCounter.Length; i++)
+                _requestedPathsParallelCounter[i] = 0;
+
+            CalculateRequestedPathsCountJob calculateRequestedPathsCountJob = new CalculateRequestedPathsCountJob()
+            {
+                ParallelCounter = _requestedPathsParallelCounter
+            };
+
+            return calculateRequestedPathsCountJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        private JobHandle CalculateInProgressPathsCount(ref SystemState state, JobHandle dependency)
+        {
+            for (int i = 0; i < _inProgressPathsParallelCounter.Length; i++)
+                _inProgressPathsParallelCounter[i] = 0;
+
+            CalculateInProgressPathsCountJob calculateInProgressPathsCountJob = new CalculateInProgressPathsCountJob()
+            {
+                ParallelCounter = _inProgressPathsParallelCounter
+            };
+
+            return calculateInProgressPathsCountJob.ScheduleParallel(dependency);
+        }
+
+        [BurstCompile]
+        private JobHandle UpdateSystemData(ref SystemState state, JobHandle dependency)
+        {
+            UpdateSystemDataJob updateSystemDataJob = new UpdateSystemDataJob()
+            {
+                PathFindersCounter = _pathFindersCountParallelCounter,
+                RequestedPathsCounter = _requestedPathsParallelCounter,
+                InProgressPathsCounter = _inProgressPathsParallelCounter
+            };
+
+            return updateSystemDataJob.ScheduleParallel(dependency);
         }
 
         [BurstCompile]
@@ -146,6 +234,7 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
             public TickCount TickCount;
+            public PathfindingSystemData SystemData;
 
             [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
@@ -154,7 +243,7 @@ namespace Entities.Systems.Pathfinding
             {
                 NavMeshQuery query = NavMeshQueriesPtr[pathFinderQuerryIndex.Value];
 
-                if (pathFinder.Status == PathStatus.Requested)
+                if (pathFinder.Status == PathStatus.Requested && SystemData.SkipNewRequests == false)
                 {
                     pathFinder.RequestStartPosition = localToWorld.Position;
                     pathFinder.RequestEndPosition = destination.Value;
@@ -333,6 +422,70 @@ namespace Entities.Systems.Pathfinding
             {
                 FreeIndices.Enqueue(pathFinderQuerryIndex.Value);
                 CommandBuffer.RemoveComponent<PathFinderQuerryIndex>(querryIndex, entity);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct CalculatePathfindersCountJob : IJobEntity
+        {
+            [NativeDisableParallelForRestriction] public NativeArray<int> ParallelCounter;
+
+            [NativeSetThreadIndex] private int _threadIndex;
+
+            public void Execute(in PathFinder pathFinder) => ParallelCounter[_threadIndex]++;
+        }
+
+        [BurstCompile]
+        private partial struct CalculateRequestedPathsCountJob : IJobEntity
+        {
+            [NativeDisableParallelForRestriction] public NativeArray<int> ParallelCounter;
+
+            [NativeSetThreadIndex] private int _threadIndex;
+
+            public void Execute(in PathFinder pathFinder)
+            {
+                if (pathFinder.Status == PathStatus.Requested)
+                    ParallelCounter[_threadIndex]++;
+            }
+        }
+
+        [BurstCompile]
+        private partial struct CalculateInProgressPathsCountJob : IJobEntity
+        {
+            [NativeDisableParallelForRestriction] public NativeArray<int> ParallelCounter;
+
+            [NativeSetThreadIndex] private int _threadIndex;
+
+            public void Execute(in PathFinder pathFinder)
+            {
+                if (pathFinder.Status == PathStatus.InProgress)
+                    ParallelCounter[_threadIndex]++;
+            }
+        }
+
+        [BurstCompile]
+        private partial struct UpdateSystemDataJob : IJobEntity
+        {
+            [ReadOnly] public NativeArray<int> PathFindersCounter;
+            [ReadOnly] public NativeArray<int> RequestedPathsCounter;
+            [ReadOnly] public NativeArray<int> InProgressPathsCounter;
+
+            public void Execute(ref PathfindingSystemData systemData)
+            {
+                int count = 0;
+                for (int i = 0; i < PathFindersCounter.Length; i++)
+                    count += PathFindersCounter[i];
+                systemData.PathFindersCount = count;
+
+                count = 0;
+                for (int i = 0; i < RequestedPathsCounter.Length; i++)
+                    count += RequestedPathsCounter[i];
+                systemData.RequestedPathsCount = count;
+
+                count = 0;
+                for (int i = 0; i < InProgressPathsCounter.Length; i++)
+                    count += InProgressPathsCounter[i];
+                systemData.InProgressPathsCount = count;
             }
         }
     }

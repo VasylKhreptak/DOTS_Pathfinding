@@ -74,7 +74,11 @@ namespace Entities.Systems.Pathfinding
             _colliderKeyEntityPairBufferLookup = GetBufferLookup<PhysicsColliderKeyEntityPair>(true);
             _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
 
+            if (SystemAPI.HasSingleton<NavMeshBakeSystemData>() == false)
+                EntityManager.CreateSingleton<NavMeshBakeSystemData>();
+
             RequireForUpdate<NavMeshBakeCenterTag>();
+            RequireForUpdate<NavMeshBakeSystemData>();
         }
 
         protected override void OnUpdate()
@@ -96,6 +100,9 @@ namespace Entities.Systems.Pathfinding
             _sourcesNativeBuffer.Dispose();
             _intCounter.Dispose();
             _cts.Cancel();
+
+            if (SystemAPI.TryGetSingletonEntity<NavMeshBakeSystemData>(out Entity entity))
+                EntityManager.DestroyEntity(entity);
         }
 
         private async UniTask BakeNavMeshes(CancellationToken token)
@@ -126,7 +133,12 @@ namespace Entities.Systems.Pathfinding
 
                 stopwatch = Stopwatch.StartNew();
 
+                SystemAPI.GetSingletonRW<NavMeshBakeSystemData>().ValueRW.IsUpdatingNavMeshData = true;
+                SystemAPI.GetSingletonRW<PathfindingSystemData>().ValueRW.SkipNewRequests = true;
+                await UniTask.WaitUntil(() => SystemAPI.GetSingleton<PathfindingSystemData>().InProgressPathsCount == 0, cancellationToken: token);
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
+                SystemAPI.GetSingletonRW<PathfindingSystemData>().ValueRW.SkipNewRequests = false;
+                SystemAPI.GetSingletonRW<NavMeshBakeSystemData>().ValueRW.IsUpdatingNavMeshData = false;
 
                 stopwatch.Stop();
 
