@@ -55,7 +55,7 @@ namespace Entities.Systems.Pathfinding
 
         protected override void OnCreate()
         {
-            if (SystemAPI.HasSingleton<NavMeshBakeSettings>() == false)
+            if (!SystemAPI.HasSingleton<NavMeshBakeSettings>())
                 EntityManager.CreateSingleton(NavMeshBakeSettings.Default);
 
             NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
@@ -73,7 +73,7 @@ namespace Entities.Systems.Pathfinding
             _colliderKeyEntityPairBufferLookup = GetBufferLookup<PhysicsColliderKeyEntityPair>(true);
             _meshColliderMeshReferenceLookup = GetComponentLookup<MeshColliderMeshReference>(true);
 
-            if (SystemAPI.HasSingleton<NavMeshBakeSystemData>() == false)
+            if (!SystemAPI.HasSingleton<NavMeshBakeSystemData>())
                 EntityManager.CreateSingleton<NavMeshBakeSystemData>();
 
             RequireForUpdate<NavMeshBakeCenterTag>();
@@ -277,7 +277,9 @@ namespace Entities.Systems.Pathfinding
             int terrainsCount = CalculateTerrainSourcesCount(bounds, layerMask, geometry);
 
             for (int i = 0; i < _intCounter.Length; i++)
+            {
                 _intCounter[i] = 0;
+            }
 
             int sourcesCount = 0;
 
@@ -294,7 +296,9 @@ namespace Entities.Systems.Pathfinding
                 Dependency.Complete();
 
                 for (int i = 0; i < _intCounter.Length; i++)
+                {
                     sourcesCount += _intCounter[i];
+                }
             }
             else
             {
@@ -309,7 +313,9 @@ namespace Entities.Systems.Pathfinding
                 Dependency.Complete();
 
                 for (int i = 0; i < _intCounter.Length; i++)
+                {
                     sourcesCount += _intCounter[i];
+                }
             }
 
             int targetCapacity = sourcesCount + modifierVolumesCount + terrainsCount;

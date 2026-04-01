@@ -29,7 +29,7 @@ namespace Entities.Authoring.Pathfinding
             {
                 Entity entity = GetEntity(TransformUsageFlags.None);
 
-                AddComponent(entity, new PathfindingSettings()
+                AddComponent(entity, new PathfindingSettings
                 {
                     InitialNavMeshQueriesBufferSize = authoring.InitialNavMeshQueriesBufferSize,
                     MaxPathIterations = authoring.MaxPathIterations,
@@ -46,7 +46,7 @@ namespace Entities.Authoring.Pathfinding
         public int PathNodePoolSize;
 
         public static PathfindingSettings Default =>
-            new PathfindingSettings()
+            new PathfindingSettings
             {
                 InitialNavMeshQueriesBufferSize = 32,
                 MaxPathIterations = 64,

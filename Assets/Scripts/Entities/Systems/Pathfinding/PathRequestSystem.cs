@@ -11,7 +11,7 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            MakePathRequestsOnTimeJob job = new MakePathRequestsOnTimeJob()
+            MakePathRequestsOnTimeJob job = new MakePathRequestsOnTimeJob
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime
             };

@@ -16,7 +16,7 @@ namespace Entities.Authoring.Pathfinding
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                OptimizedUpdateInterval optimizedUpdateInterval = new OptimizedUpdateInterval()
+                OptimizedUpdateInterval optimizedUpdateInterval = new OptimizedUpdateInterval
                 {
                     MinInterval = authoring._minInterval,
                     MinDistance = authoring._minDistance,

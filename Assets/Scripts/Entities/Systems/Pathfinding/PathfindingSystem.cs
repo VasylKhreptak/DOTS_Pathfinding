@@ -30,7 +30,7 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            if (SystemAPI.HasSingleton<PathfindingSettings>() == false)
+            if (!SystemAPI.HasSingleton<PathfindingSettings>())
                 state.EntityManager.CreateSingleton(PathfindingSettings.Default);
 
             PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
@@ -43,12 +43,16 @@ namespace Entities.Systems.Pathfinding
             _inProgressPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
+            {
                 _navMeshQueries[i] = CreateNavMeshQuery(settings.PathNodePoolSize);
+            }
 
             for (int i = 0; i < _navMeshQueries.Length; i++)
+            {
                 _freeNavMeshQueryIndices.Enqueue(i);
+            }
 
-            if (SystemAPI.HasSingleton<PathfindingSystemData>() == false)
+            if (!SystemAPI.HasSingleton<PathfindingSystemData>())
                 state.EntityManager.CreateSingleton<PathfindingSystemData>();
 
             state.RequireForUpdate<TickCount>();
@@ -61,7 +65,9 @@ namespace Entities.Systems.Pathfinding
         public void OnDestroy(ref SystemState state)
         {
             for (int i = 0; i < _navMeshQueries.Length; i++)
+            {
                 _navMeshQueries[i].Dispose();
+            }
 
             _navMeshQueries.Dispose();
             _freeNavMeshQueryIndices.Dispose();
@@ -111,7 +117,7 @@ namespace Entities.Systems.Pathfinding
         {
             EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-            AssignQueryIndicesJob assignQueryIndicesJob = new AssignQueryIndicesJob()
+            AssignQueryIndicesJob assignQueryIndicesJob = new AssignQueryIndicesJob
             {
                 FreeIndices = _freeNavMeshQueryIndices,
                 CommandBuffer = endSimulationECB
@@ -126,7 +132,7 @@ namespace Entities.Systems.Pathfinding
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
             PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
 
-            ProcessPathCalculationJob processPathCalculationJob = new ProcessPathCalculationJob()
+            ProcessPathCalculationJob processPathCalculationJob = new ProcessPathCalculationJob
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
@@ -143,7 +149,7 @@ namespace Entities.Systems.Pathfinding
         {
             EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-            ReturnFreeIndicesJob returnFreeIndicesJob = new ReturnFreeIndicesJob()
+            ReturnFreeIndicesJob returnFreeIndicesJob = new ReturnFreeIndicesJob
             {
                 FreeIndices = _freeNavMeshQueryIndices.AsParallelWriter(),
                 CommandBuffer = endSimulationECB.AsParallelWriter()
@@ -167,9 +173,11 @@ namespace Entities.Systems.Pathfinding
         private JobHandle CalculateSeekersCount(ref SystemState state, JobHandle dependency)
         {
             for (int i = 0; i < _seekersParallelCounter.Length; i++)
+            {
                 _seekersParallelCounter[i] = 0;
+            }
 
-            CalculateSeekersCountJob calculateSeekersCountJob = new CalculateSeekersCountJob()
+            CalculateSeekersCountJob calculateSeekersCountJob = new CalculateSeekersCountJob
             {
                 ParallelCounter = _seekersParallelCounter
             };
@@ -181,9 +189,11 @@ namespace Entities.Systems.Pathfinding
         private JobHandle CalculateRequestedPathsCount(ref SystemState state, JobHandle dependency)
         {
             for (int i = 0; i < _requestedPathsParallelCounter.Length; i++)
+            {
                 _requestedPathsParallelCounter[i] = 0;
+            }
 
-            CalculateRequestedPathsCountJob calculateRequestedPathsCountJob = new CalculateRequestedPathsCountJob()
+            CalculateRequestedPathsCountJob calculateRequestedPathsCountJob = new CalculateRequestedPathsCountJob
             {
                 ParallelCounter = _requestedPathsParallelCounter
             };
@@ -195,9 +205,11 @@ namespace Entities.Systems.Pathfinding
         private JobHandle CalculateInProgressPathsCount(ref SystemState state, JobHandle dependency)
         {
             for (int i = 0; i < _inProgressPathsParallelCounter.Length; i++)
+            {
                 _inProgressPathsParallelCounter[i] = 0;
+            }
 
-            CalculateInProgressPathsCountJob calculateInProgressPathsCountJob = new CalculateInProgressPathsCountJob()
+            CalculateInProgressPathsCountJob calculateInProgressPathsCountJob = new CalculateInProgressPathsCountJob
             {
                 ParallelCounter = _inProgressPathsParallelCounter
             };
@@ -208,7 +220,7 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         private JobHandle UpdateSystemData(ref SystemState state, JobHandle dependency)
         {
-            UpdateSystemDataJob updateSystemDataJob = new UpdateSystemDataJob()
+            UpdateSystemDataJob updateSystemDataJob = new UpdateSystemDataJob
             {
                 SeekerCounter = _seekersParallelCounter,
                 RequestedPathsCounter = _requestedPathsParallelCounter,
@@ -228,7 +240,7 @@ namespace Entities.Systems.Pathfinding
 
             public void Execute(Entity entity)
             {
-                SeekerQuerryIndex seekerQuerryIndex = new SeekerQuerryIndex()
+                SeekerQuerryIndex seekerQuerryIndex = new SeekerQuerryIndex
                 {
                     Value = FreeIndices.Dequeue()
                 };
@@ -252,7 +264,7 @@ namespace Entities.Systems.Pathfinding
             {
                 NavMeshQuery query = NavMeshQueriesPtr[seekerQuerryIndex.Value];
 
-                if (seeker.Status == PathStatus.Requested && SystemData.SkipNewRequests == false)
+                if (seeker.Status == PathStatus.Requested && !SystemData.SkipNewRequests)
                 {
                     seeker.RequestStartPosition = localToWorld.Position;
                     seeker.RequestEndPosition = destination.Value;
@@ -260,8 +272,8 @@ namespace Entities.Systems.Pathfinding
                     if (math.distancesq(localToWorld.Position, destination.Value) < 0.0001f)
                     {
                         pathWaypoints.Clear();
-                        pathWaypoints.Add(new PathWaypoint() { Value = seeker.RequestStartPosition });
-                        pathWaypoints.Add(new PathWaypoint() { Value = seeker.RequestEndPosition });
+                        pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestStartPosition });
+                        pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestEndPosition });
                         seeker.LastCalculationTickCount = TickCount.Value;
                         seeker.LastCalculationTime = ElapsedTime;
                         seeker.Status = PathStatus.Success;
@@ -270,7 +282,7 @@ namespace Entities.Systems.Pathfinding
 
                     NavMeshLocation startLocation = query.MapLocation(seeker.RequestStartPosition, new float3(seeker.StartPositionSnappingDistance), agent.AgentID);
 
-                    if (query.IsValid(startLocation) == false)
+                    if (!query.IsValid(startLocation))
                     {
                         pathWaypoints.Clear();
                         seeker.LastCalculationTickCount = TickCount.Value;
@@ -281,7 +293,7 @@ namespace Entities.Systems.Pathfinding
 
                     NavMeshLocation endLocation = query.MapLocation(seeker.RequestEndPosition, new float3(seeker.DestinationPositionSnappingDistance), agent.AgentID);
 
-                    if (query.IsValid(endLocation) == false)
+                    if (!query.IsValid(endLocation))
                     {
                         pathWaypoints.Clear();
                         seeker.LastCalculationTickCount = TickCount.Value;
@@ -309,7 +321,7 @@ namespace Entities.Systems.Pathfinding
 
                 if (seeker.Status == PathStatus.InProgress)
                 {
-                    PathQueryStatus status = query.UpdateFindPath(Settings.MaxPathIterations, out _);
+                    PathQueryStatus status = query.UpdateFindPath(Settings.MaxPathIterations, out var _);
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
@@ -469,17 +481,26 @@ namespace Entities.Systems.Pathfinding
             {
                 int count = 0;
                 for (int i = 0; i < SeekerCounter.Length; i++)
+                {
                     count += SeekerCounter[i];
+                }
+
                 systemData.SeekersCount = count;
 
                 count = 0;
                 for (int i = 0; i < RequestedPathsCounter.Length; i++)
+                {
                     count += RequestedPathsCounter[i];
+                }
+
                 systemData.RequestedPathsCount = count;
 
                 count = 0;
                 for (int i = 0; i < InProgressPathsCounter.Length; i++)
+                {
                     count += InProgressPathsCounter[i];
+                }
+
                 systemData.InProgressPathsCount = count;
             }
         }
