@@ -105,6 +105,14 @@ namespace Entities.Systems.Pathfinding
 
             if (SystemAPI.TryGetSingletonEntity<NavMeshBakeSystemData>(out Entity entity))
                 EntityManager.DestroyEntity(entity);
+
+            foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces)
+            {
+                if (navMeshSurface.navMeshData == null)
+                    continue;
+
+                NavMeshBuilder.Cancel(navMeshSurface.navMeshData);
+            }
         }
 
         private async UniTask BakeNavMeshes(CancellationToken token)
@@ -246,26 +254,26 @@ namespace Entities.Systems.Pathfinding
             await UniTask.WaitUntil(() => Dependency.IsCompleted, cancellationToken: token);
 
             NavMeshBuildSource source = default;
-            
+
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
             {
                 UnmanagedNavMeshBuildSource unmanagedSource = _sourcesNativeBuffer[i];
-            
+
                 source.transform = unmanagedSource.TransformMatrix;
                 source.size = unmanagedSource.Size;
                 source.shape = unmanagedSource.Shape;
                 source.area = unmanagedSource.Area;
                 source.sourceObject = unmanagedSource.MeshReference.Value;
                 source.generateLinks = unmanagedSource.GenerateLinks;
-            
+
                 sources.Add(source);
-            
+
                 NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
-            
+
                 if (i % settings.NavMeshSourceConversationBatchCount == 0)
                     await UniTask.Yield(token);
             }
-            
+
             await UniTask.Yield(token);
 
             CollectTerrainSources(bounds, layerMask, defaultArea, geometry, sources);
