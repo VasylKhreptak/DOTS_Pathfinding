@@ -88,7 +88,6 @@ namespace Entities.Systems.Pathfinding
             state.Dependency = ProcessPathCalculation(ref state, state.Dependency);
             state.Dependency = ReturnFreeIndices(ref state, state.Dependency);
             state.Dependency = UpdatePathfindingSystemData(ref state, state.Dependency);
-            NavMeshWorld.GetDefaultWorld().AddDependency(state.Dependency);
         }
 
         [BurstCompile]
