@@ -69,9 +69,20 @@ namespace Gameplay.StateMachine.States
         private void CreateUpdateSystems()
         {
             CreateSystemManaged<PrefabLibrarySystem, UpdateSystemGroup>();
-
+            CreatePathfindingSystems();
             CreateAudioSystems();
             CreateUISystems();
+        }
+
+        private void CreatePathfindingSystems()
+        {
+            CreateSystemManaged<NavMeshBakeSystem, UpdateSystemGroup>();
+            CreateSystemManaged<NavMeshObstacleSystem, UpdateSystemGroup>();
+            CreateSystem<OptimizedUpdateIntervalSystem, UpdateSystemGroup>();
+            CreateSystem<PathRequestSystem, UpdateSystemGroup>();
+            CreateSystem<PathfindingSystem, UpdateSystemGroup>();
+            CreateSystem<RadiusModifierSystem, UpdateSystemGroup>();
+            CreateSystem<SmoothModifierSystem, UpdateSystemGroup>();
         }
 
         private void CreateAudioSystems()
@@ -86,21 +97,7 @@ namespace Gameplay.StateMachine.States
             //managed systems that updates UI inside world tick timing
         }
 
-        private void CreateLateUpdateSystems()
-        {
-            CreatePathfindingSystems();
-        }
-
-        private void CreatePathfindingSystems()
-        {
-            CreateSystemManaged<NavMeshBakeSystem, LateUpdateSystemGroup>();
-            CreateSystemManaged<NavMeshObstacleSystem, LateUpdateSystemGroup>();
-            CreateSystem<OptimizedUpdateIntervalSystem, LateUpdateSystemGroup>();
-            CreateSystem<PathRequestSystem, LateUpdateSystemGroup>();
-            CreateSystem<PathfindingSystem, LateUpdateSystemGroup>();
-            CreateSystem<RadiusModifierSystem, LateUpdateSystemGroup>();
-            CreateSystem<SmoothModifierSystem, LateUpdateSystemGroup>();
-        }
+        private void CreateLateUpdateSystems() { }
 
         private void CreateSystem<T, TGroup>() where T : unmanaged, ISystem where TGroup : ComponentSystemGroup
         {

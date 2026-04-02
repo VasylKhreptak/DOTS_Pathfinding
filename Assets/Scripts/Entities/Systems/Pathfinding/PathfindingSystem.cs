@@ -88,6 +88,7 @@ namespace Entities.Systems.Pathfinding
             state.Dependency = ProcessPathCalculation(ref state, state.Dependency);
             state.Dependency = ReturnFreeIndices(ref state, state.Dependency);
             state.Dependency = UpdatePathfindingSystemData(ref state, state.Dependency);
+            NavMeshWorld.GetDefaultWorld().AddDependency(state.Dependency);
         }
 
         [BurstCompile]
@@ -164,8 +165,7 @@ namespace Entities.Systems.Pathfinding
             JobHandle updateSeekersCountHandle = CalculateSeekersCount(ref state, dependency);
             JobHandle updateRequestedPathsCountHandle = CalculateRequestedPathsCount(ref state, dependency);
             JobHandle updateInProgressPathsCountHandle = CalculateInProgressPathsCount(ref state, dependency);
-            JobHandle calculationJobsHandle =
-                JobHandle.CombineDependencies(updateSeekersCountHandle, updateRequestedPathsCountHandle, updateInProgressPathsCountHandle);
+            JobHandle calculationJobsHandle = JobHandle.CombineDependencies(updateSeekersCountHandle, updateRequestedPathsCountHandle, updateInProgressPathsCountHandle);
             return UpdateSystemData(ref state, calculationJobsHandle);
         }
 

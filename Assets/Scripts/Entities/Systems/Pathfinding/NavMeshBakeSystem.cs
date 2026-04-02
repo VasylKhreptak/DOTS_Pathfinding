@@ -140,8 +140,11 @@ namespace Entities.Systems.Pathfinding
 
                 SystemAPI.GetSingletonRW<NavMeshBakeSystemData>().ValueRW.IsUpdatingNavMeshData = true;
                 SystemAPI.GetSingletonRW<PathfindingSystemData>().ValueRW.SkipNewRequests = true;
+
                 await UniTask.WaitUntil(() => SystemAPI.GetSingleton<PathfindingSystemData>().InProgressPathsCount == 0, cancellationToken: token);
+
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
+
                 SystemAPI.GetSingletonRW<PathfindingSystemData>().ValueRW.SkipNewRequests = false;
                 SystemAPI.GetSingletonRW<NavMeshBakeSystemData>().ValueRW.IsUpdatingNavMeshData = false;
 
@@ -242,29 +245,27 @@ namespace Entities.Systems.Pathfinding
 
             await UniTask.WaitUntil(() => Dependency.IsCompleted, cancellationToken: token);
 
-            await UniTask.SwitchToMainThread(token);
-
             NavMeshBuildSource source = default;
-
+            
             for (int i = 0; i < _sourcesNativeBuffer.Length; i++)
             {
                 UnmanagedNavMeshBuildSource unmanagedSource = _sourcesNativeBuffer[i];
-
+            
                 source.transform = unmanagedSource.TransformMatrix;
                 source.size = unmanagedSource.Size;
                 source.shape = unmanagedSource.Shape;
                 source.area = unmanagedSource.Area;
                 source.sourceObject = unmanagedSource.MeshReference.Value;
                 source.generateLinks = unmanagedSource.GenerateLinks;
-
+            
                 sources.Add(source);
-
+            
                 NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
-
+            
                 if (i % settings.NavMeshSourceConversationBatchCount == 0)
                     await UniTask.Yield(token);
             }
-
+            
             await UniTask.Yield(token);
 
             CollectTerrainSources(bounds, layerMask, defaultArea, geometry, sources);

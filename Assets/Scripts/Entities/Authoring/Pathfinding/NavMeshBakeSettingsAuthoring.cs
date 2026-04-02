@@ -57,7 +57,7 @@ namespace Entities.Authoring.Pathfinding
         public static NavMeshBakeSettings Default =>
             new NavMeshBakeSettings
             {
-                BakeThreadsCount = 1,
+                BakeThreadsCount = 2,
                 BakeInterval = 2,
                 Range = 100,
                 InitialSourcesBufferSize = 1024 * 2,
