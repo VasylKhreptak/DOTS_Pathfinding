@@ -42,13 +42,9 @@ namespace Entities.Systems.Pathfinding
             _requestedPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
             _inProgressPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
 
-            for (int i = 0; i < _navMeshQueries.Length; i++)
+            for (int i = 0; i < settings.InitialNavMeshQueriesBufferSize; i++)
             {
-                _navMeshQueries[i] = CreateNavMeshQuery(settings.PathNodePoolSize);
-            }
-
-            for (int i = 0; i < _navMeshQueries.Length; i++)
-            {
+                _navMeshQueries.Add(CreateNavMeshQuery(settings.PathNodePoolSize));
                 _freeNavMeshQueryIndices.Enqueue(i);
             }
 
