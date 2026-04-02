@@ -105,14 +105,6 @@ namespace Entities.Systems.Pathfinding
 
             if (SystemAPI.TryGetSingletonEntity<NavMeshBakeSystemData>(out Entity entity))
                 EntityManager.DestroyEntity(entity);
-
-            foreach (NavMeshSurface navMeshSurface in NavMeshSurface.activeSurfaces)
-            {
-                if (navMeshSurface.navMeshData == null)
-                    continue;
-
-                NavMeshBuilder.Cancel(navMeshSurface.navMeshData);
-            }
         }
 
         private async UniTask BakeNavMeshes(CancellationToken token)
@@ -150,6 +142,8 @@ namespace Entities.Systems.Pathfinding
                 SystemAPI.GetSingletonRW<PathfindingSystemData>().ValueRW.SkipNewRequests = true;
 
                 await UniTask.WaitUntil(() => SystemAPI.GetSingleton<PathfindingSystemData>().InProgressPathsCount == 0, cancellationToken: token);
+
+                token.Register(() => NavMeshBuilder.Cancel(navMeshSurface.navMeshData));
 
                 await NavMeshBuilder.UpdateNavMeshDataAsync(navMeshSurface.navMeshData, settings, _sourcesBuffer, bounds).ToUniTask(cancellationToken: token);
 
