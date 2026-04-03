@@ -48,7 +48,7 @@ namespace Entities.Authoring.Pathfinding
             new PathfindingSettings
             {
                 NavMeshQueriesBufferSize = 32,
-                MaxPathIterations = 128,
+                MaxPathIterations = 64,
                 PathNodePoolSize = 1024 * 4
             };
     }
