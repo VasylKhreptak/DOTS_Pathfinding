@@ -4,6 +4,7 @@
     "com.marijnzwemmer.unity-toolbar-extender": "https://github.com/marijnz/unity-toolbar-extender.git",
     "com.unity.addressables": "2.6.0",
     "com.unity.ai.navigation": "2.0.12",
+    "com.unity.charactercontroller": "1.4.2",
     "com.unity.collab-proxy": "2.8.2",
     "com.unity.entities": "1.3.14",
     "com.unity.entities.graphics": "1.3.2",
