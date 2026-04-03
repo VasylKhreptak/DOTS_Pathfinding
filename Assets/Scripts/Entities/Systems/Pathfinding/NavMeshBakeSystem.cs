@@ -50,8 +50,9 @@ namespace Entities.Systems.Pathfinding
 
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
+        private bool _performedFirstBake;
         private bool _isBaking;
-        private float _lastCompletedBakeTime;
+        private Vector3 _lastBakeCenterPosition;
 
         protected override void OnCreate()
         {
@@ -89,10 +90,16 @@ namespace Entities.Systems.Pathfinding
             if (_isBaking)
                 return;
 
-            NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+            if (_performedFirstBake)
+            {
+                NavMeshBakeSettings settings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
+                LocalToWorld bakeCenterLocalToWorld = SystemAPI.GetComponent<LocalToWorld>(SystemAPI.GetSingletonEntity<NavMeshBakeCenterTag>());
 
-            if ((float)SystemAPI.Time.ElapsedTime < _lastCompletedBakeTime + settings.BakeInterval)
-                return;
+                float distanceFromLastBakeCenter = math.distance(bakeCenterLocalToWorld.Position, _lastBakeCenterPosition);
+
+                if (distanceFromLastBakeCenter < settings.BakeDistanceThreshold)
+                    return;
+            }
 
             BakeNavMeshes(_cts.Token).Forget();
         }
@@ -111,12 +118,11 @@ namespace Entities.Systems.Pathfinding
         {
             _isBaking = true;
 
-            Entity bakeCenterEntity = SystemAPI.GetSingletonEntity<NavMeshBakeCenterTag>();
-            LocalToWorld localToWorld = EntityManager.GetComponentData<LocalToWorld>(bakeCenterEntity);
+            LocalToWorld bakeCenterLocalToWorld = EntityManager.GetComponentData<LocalToWorld>(SystemAPI.GetSingletonEntity<NavMeshBakeCenterTag>());
 
             NavMeshBakeSettings navMeshBakeSettings = SystemAPI.GetSingleton<NavMeshBakeSettings>();
 
-            Bounds bounds = new Bounds(localToWorld.Position, Vector3.one * navMeshBakeSettings.Range * 2f);
+            Bounds bounds = new Bounds(bakeCenterLocalToWorld.Position, Vector3.one * navMeshBakeSettings.Range * 2f);
 
             AssignNavMeshData();
 
@@ -155,8 +161,9 @@ namespace Entities.Systems.Pathfinding
                 Debug.LogError("Update nav mesh data duration: " + stopwatch.Elapsed.TotalSeconds);
             }
 
+            _performedFirstBake = true;
             _isBaking = false;
-            _lastCompletedBakeTime = (float)SystemAPI.Time.ElapsedTime;
+            _lastBakeCenterPosition = bakeCenterLocalToWorld.Position;
         }
 
         private void AssignNavMeshData()
