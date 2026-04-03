@@ -21,7 +21,7 @@ namespace Entities.Systems.Pathfinding
     [Obsolete("Obsolete")]
     public partial struct PathfindingSystem : ISystem
     {
-        private NativeList<NavMeshQuery> _navMeshQueries;
+        private NativeArray<NavMeshQuery> _navMeshQueries;
         private NativeQueue<int> _freeNavMeshQueryIndices;
         private NativeArray<int> _seekersParallelCounter;
         private NativeArray<int> _requestedPathsParallelCounter;
@@ -35,16 +35,16 @@ namespace Entities.Systems.Pathfinding
 
             PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
 
-            _navMeshQueries = new NativeList<NavMeshQuery>(settings.InitialNavMeshQueriesBufferSize, Allocator.Persistent);
+            _navMeshQueries = new NativeArray<NavMeshQuery>(settings.NavMeshQueriesBufferSize, Allocator.Persistent);
             _freeNavMeshQueryIndices = new NativeQueue<int>(Allocator.Persistent);
 
             _seekersParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
             _requestedPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
             _inProgressPathsParallelCounter = new NativeArray<int>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
 
-            for (int i = 0; i < settings.InitialNavMeshQueriesBufferSize; i++)
+            for (int i = 0; i < settings.NavMeshQueriesBufferSize; i++)
             {
-                _navMeshQueries.Add(CreateNavMeshQuery(settings.PathNodePoolSize));
+                _navMeshQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, settings.PathNodePoolSize);
                 _freeNavMeshQueryIndices.Enqueue(i);
             }
 
@@ -79,7 +79,7 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            EnsureQueriesSize(ref state);
+            state.Dependency = CreateSeekerQueryIndexComponents(ref state, state.Dependency);
             state.Dependency = AssignQuerryIndices(ref state, state.Dependency);
             state.Dependency = ProcessPathCalculation(ref state, state.Dependency);
             state.Dependency = ReturnFreeIndices(ref state, state.Dependency);
@@ -87,36 +87,24 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
-        private NavMeshQuery CreateNavMeshQuery(int pathNodePoolSize) => new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, pathNodePoolSize);
-
-        [BurstCompile]
-        private void EnsureQueriesSize(ref SystemState state)
+        private JobHandle CreateSeekerQueryIndexComponents(ref SystemState state, JobHandle dependency)
         {
-            int seekersCount = SystemAPI.QueryBuilder().WithAll<Seeker>().Build().CalculateEntityCount();
+            EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-            if (_navMeshQueries.Capacity < seekersCount)
-                _navMeshQueries.Capacity = seekersCount;
-
-            int itemsToAdd = seekersCount - _navMeshQueries.Length;
-
-            PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
-
-            for (int i = 0; i < itemsToAdd; i++)
+            CreateSeekerQueryIndexComponentsJob job = new CreateSeekerQueryIndexComponentsJob()
             {
-                _navMeshQueries.Add(CreateNavMeshQuery(settings.PathNodePoolSize));
-                _freeNavMeshQueryIndices.Enqueue(_navMeshQueries.Length - 1);
-            }
+                CommandBuffer = endSimulationECB.AsParallelWriter()
+            };
+
+            return job.ScheduleParallel(dependency);
         }
 
         [BurstCompile]
         private JobHandle AssignQuerryIndices(ref SystemState state, JobHandle dependency)
         {
-            EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
-
             AssignQueryIndicesJob assignQueryIndicesJob = new AssignQueryIndicesJob
             {
                 FreeIndices = _freeNavMeshQueryIndices,
-                CommandBuffer = endSimulationECB
             };
 
             return assignQueryIndicesJob.Schedule(dependency);
@@ -134,7 +122,7 @@ namespace Entities.Systems.Pathfinding
                 TickCount = tickCount,
                 SystemData = SystemAPI.GetSingleton<PathfindingSystemData>(),
                 Settings = settings,
-                NavMeshQueriesPtr = _navMeshQueries.GetUnsafePtr()
+                NavMeshQueriesPtr = (NavMeshQuery*)_navMeshQueries.GetUnsafePtr()
             };
 
             return processPathCalculationJob.ScheduleParallel(dependency);
@@ -143,15 +131,24 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         private JobHandle ReturnFreeIndices(ref SystemState state, JobHandle dependency)
         {
+            ReturnFreeIndicesFromStatus returnFreeIndicesFromStatusJob = new ReturnFreeIndicesFromStatus()
+            {
+                FreeIndices = _freeNavMeshQueryIndices.AsParallelWriter()
+            };
+
+            JobHandle freeIndicesFromStatusHandle = returnFreeIndicesFromStatusJob.ScheduleParallel(dependency);
+
             EntityCommandBuffer endSimulationECB = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-            ReturnFreeIndicesJob returnFreeIndicesJob = new ReturnFreeIndicesJob
+            ReturnFreeIndicesFromDestroyedEntitiesJob returnFreeIndicesFromDestroyedEntitiesJob = new ReturnFreeIndicesFromDestroyedEntitiesJob
             {
                 FreeIndices = _freeNavMeshQueryIndices.AsParallelWriter(),
                 CommandBuffer = endSimulationECB.AsParallelWriter()
             };
 
-            return returnFreeIndicesJob.ScheduleParallel(dependency);
+            JobHandle freeIndicesFromDestroyedEntitiesHandle = returnFreeIndicesFromDestroyedEntitiesJob.ScheduleParallel(dependency);
+
+            return JobHandle.CombineDependencies(freeIndicesFromDestroyedEntitiesHandle, freeIndicesFromStatusHandle);
         }
 
         [BurstCompile]
@@ -228,19 +225,38 @@ namespace Entities.Systems.Pathfinding
         [BurstCompile]
         [WithAll(typeof(Seeker))]
         [WithNone(typeof(SeekerQuerryIndex))]
-        private partial struct AssignQueryIndicesJob : IJobEntity
+        private partial struct CreateSeekerQueryIndexComponentsJob : IJobEntity
         {
-            public NativeQueue<int> FreeIndices;
-            public EntityCommandBuffer CommandBuffer;
+            public EntityCommandBuffer.ParallelWriter CommandBuffer;
 
-            public void Execute(Entity entity)
+            public void Execute([EntityIndexInQuery] int indexInQuery, Entity entity)
             {
                 SeekerQuerryIndex seekerQuerryIndex = new SeekerQuerryIndex
                 {
-                    Value = FreeIndices.Dequeue()
+                    Value = -1
                 };
 
-                CommandBuffer.AddComponent(entity, seekerQuerryIndex);
+                CommandBuffer.AddComponent(indexInQuery, entity, seekerQuerryIndex);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct AssignQueryIndicesJob : IJobEntity
+        {
+            public NativeQueue<int> FreeIndices;
+
+            public void Execute(in Seeker seeker, ref SeekerQuerryIndex seekerQuerryIndex)
+            {
+                if (FreeIndices.Count == 0)
+                    return;
+
+                if (seeker.Status != PathStatus.Requested)
+                    return;
+
+                if (seekerQuerryIndex.Value != -1)
+                    return;
+
+                seekerQuerryIndex.Value = FreeIndices.Dequeue();
             }
         }
 
@@ -257,6 +273,9 @@ namespace Entities.Systems.Pathfinding
             public void Execute(in LocalToWorld localToWorld, in Agent agent, in Destination destination, ref Seeker seeker,
                 DynamicBuffer<PathWaypoint> pathWaypoints, in SeekerQuerryIndex seekerQuerryIndex)
             {
+                if (seekerQuerryIndex.Value == -1)
+                    return;
+
                 NavMeshQuery query = NavMeshQueriesPtr[seekerQuerryIndex.Value];
 
                 if (seeker.Status == PathStatus.Requested && !SystemData.SkipNewRequests)
@@ -414,15 +433,35 @@ namespace Entities.Systems.Pathfinding
         }
 
         [BurstCompile]
+        private partial struct ReturnFreeIndicesFromStatus : IJobEntity
+        {
+            public NativeQueue<int>.ParallelWriter FreeIndices;
+
+            public void Execute(in Seeker seeker, ref SeekerQuerryIndex seekerQuerryIndex)
+            {
+                if (seekerQuerryIndex.Value == -1)
+                    return;
+
+                if (seeker.Status == PathStatus.Success || seeker.Status == PathStatus.Failure)
+                {
+                    FreeIndices.Enqueue(seekerQuerryIndex.Value);
+                    seekerQuerryIndex.Value = -1;
+                }
+            }
+        }
+
+        [BurstCompile]
         [WithNone(typeof(LocalTransform))]
-        private partial struct ReturnFreeIndicesJob : IJobEntity
+        private partial struct ReturnFreeIndicesFromDestroyedEntitiesJob : IJobEntity
         {
             public NativeQueue<int>.ParallelWriter FreeIndices;
             public EntityCommandBuffer.ParallelWriter CommandBuffer;
 
             public void Execute([EntityIndexInQuery] int querryIndex, in SeekerQuerryIndex seekerQuerryIndex, Entity entity)
             {
-                FreeIndices.Enqueue(seekerQuerryIndex.Value);
+                if (seekerQuerryIndex.Value != -1)
+                    FreeIndices.Enqueue(seekerQuerryIndex.Value);
+
                 CommandBuffer.RemoveComponent<SeekerQuerryIndex>(querryIndex, entity);
             }
         }
