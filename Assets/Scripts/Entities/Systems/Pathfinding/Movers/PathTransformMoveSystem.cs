@@ -57,7 +57,7 @@ namespace Entities.Systems.Pathfinding.Movers
 
                         float rotateSlowdownFactor = 1 - math.saturate((dot + 1f) * 0.5f);
 
-                        mover.CurrentRotationSpeed += side > 0f ? -1 : 1 * mover.AngularAcceleration * DeltaTime;
+                        mover.CurrentRotationSpeed += (side > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
 
