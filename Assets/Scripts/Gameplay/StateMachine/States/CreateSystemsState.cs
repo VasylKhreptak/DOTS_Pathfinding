@@ -1,6 +1,7 @@
 ﻿using Entities.Systems;
 using Entities.Systems.Pathfinding;
 using Entities.Systems.Pathfinding.Modifiers;
+using Entities.Systems.Pathfinding.Movers;
 using Gameplay.StateMachine.States.Core;
 using Gameplay.Systems;
 using Gameplay.Systems.Audio;
@@ -83,6 +84,7 @@ namespace Gameplay.StateMachine.States
             CreateSystem<PathfindingSystem, UpdateSystemGroup>();
             CreateSystem<RadiusModifierSystem, UpdateSystemGroup>();
             CreateSystem<SmoothModifierSystem, UpdateSystemGroup>();
+            CreateSystem<PathTransformMoveSystem, UpdateSystemGroup>();
         }
 
         private void CreateAudioSystems()

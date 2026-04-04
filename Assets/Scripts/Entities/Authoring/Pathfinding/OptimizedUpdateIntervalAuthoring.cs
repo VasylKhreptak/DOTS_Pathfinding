@@ -5,7 +5,7 @@ namespace Entities.Authoring.Pathfinding
 {
     public class OptimizedUpdateIntervalAuthoring : MonoBehaviour
     {
-        [SerializeField] private float _minInterval = 0.1f;
+        [SerializeField] private float _minInterval = 0.3f;
         [SerializeField] private float _minDistance = 10;
         [SerializeField] private float _maxInterval = 4f;
         [SerializeField] private float _maxDistance = 300f;

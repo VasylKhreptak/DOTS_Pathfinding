@@ -8,7 +8,7 @@ namespace Entities.Authoring.Pathfinding
     {
         [SerializeField] private float _startPositionSnappingDistance = 500f;
         [SerializeField] private float _destinationPositionSnappingDistance = 500f;
-        [SerializeField] private float _calculateInterval;
+        [SerializeField] private float _calculateInterval = 0.3f;
 
         #region MonoBehaviour
 

@@ -24,9 +24,12 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
 
-            public void Execute(ref Seeker seeker)
+            public void Execute(ref Seeker seeker, in Agent agent)
             {
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
+                    return;
+
+                if (agent.ReachedEndOfPath || agent.ReachedDestination)
                     return;
 
                 if (ElapsedTime > seeker.LastCalculationTime + seeker.CalculateInterval)
