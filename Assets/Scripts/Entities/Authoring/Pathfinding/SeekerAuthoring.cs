@@ -21,7 +21,7 @@ namespace Entities.Authoring.Pathfinding
 
         #endregion
 
-        private class PathFinderBaker : Baker<SeekerAuthoring>
+        private class Baker : Baker<SeekerAuthoring>
         {
             public override void Bake(SeekerAuthoring authoring)
             {
