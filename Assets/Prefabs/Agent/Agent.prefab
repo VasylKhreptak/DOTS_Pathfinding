@@ -379,7 +379,7 @@ MonoBehaviour:
   _deceleration: 5
   _enableRotation: 1
   _maxRotationSpeed: 360
-  _angularAcceleration: 180
+  _angularAcceleration: 720
   _slowWhenNotFacingTarget: 1
   _pickNextWaypointDistance: 2
   _endReachedDistance: 0.2
