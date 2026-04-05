@@ -50,18 +50,19 @@ namespace Entities.Systems.Pathfinding.Movers
                         float dot = math.dot(transformForward, flatDirectionToWaypoint);
                         float3 cross = math.cross(transformForward, flatDirectionToWaypoint);
 
-                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 6f;
+                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 5f;
 
                         mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
 
                         if (mover.SlowWhenNotFacingTarget)
-                            facingFactor = math.clamp(dot * 1.2f, 0f, 1f);
+                            facingFactor = math.clamp(dot + 0.2f, 0f, 1f);
                     }
                     else
                     {
-                        mover.CurrentRotationSpeed = 0f;
+                        mover.CurrentRotationSpeed -= mover.AngularAcceleration * DeltaTime;
+                        mover.CurrentRotationSpeed = math.max(mover.CurrentRotationSpeed, 0f);
                     }
 
                     mover.CurrentSpeed += mover.Acceleration * DeltaTime;
@@ -72,7 +73,9 @@ namespace Entities.Systems.Pathfinding.Movers
                 {
                     mover.CurrentSpeed -= mover.Deceleration * DeltaTime;
                     mover.CurrentSpeed = math.max(mover.CurrentSpeed, 0f);
-                    mover.CurrentRotationSpeed = 0f;
+
+                    mover.CurrentRotationSpeed -= mover.AngularAcceleration * DeltaTime;
+                    mover.CurrentRotationSpeed = math.max(mover.CurrentRotationSpeed, 0f);
                 }
 
                 localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
