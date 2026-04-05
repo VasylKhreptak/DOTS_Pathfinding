@@ -33,7 +33,7 @@ namespace Entities.Systems.Pathfinding.Movers
                 if (pathWaypoints.IsEmpty || pathWaypoints.Length < 2)
                     return;
 
-                float3 endOfPath = pathWaypoints[pathWaypoints.Length - 1].Value;
+                float3 endOfPath = pathWaypoints[^1].Value;
                 float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
                 float3 transformForward = localTransform.Forward();
                 float3 moveDirection = transformForward;
@@ -50,9 +50,9 @@ namespace Entities.Systems.Pathfinding.Movers
                         float dot = math.dot(transformForward, directionToWaypoint);
                         float3 cross = math.cross(transformForward, directionToWaypoint);
 
-                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f);
+                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 4f;
 
-                        mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration;
+                        mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
 
