@@ -34,35 +34,30 @@ namespace Entities.Systems.Pathfinding.Movers
                     return;
 
                 float3 endOfPath = pathWaypoints[pathWaypoints.Length - 1].Value;
-
+                float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
                 float3 transformForward = localTransform.Forward();
-
                 float3 moveDirection = transformForward;
+                moveDirection.y = currentWaypointPosition.y;
+                moveDirection = math.normalizesafe(moveDirection);
 
                 if (agent.ReachedEndOfPath == false && agent.ReachedDestination == false && mover.CanMove)
                 {
-                    float3 currentWaypoint = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
-                    float3 directionToWaypoint = math.normalizesafe(currentWaypoint - localTransform.Position);
+                    float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
                     float facingFactor = 1f;
 
                     if (mover.EnableRotation)
                     {
-                        moveDirection = transformForward;
-                        moveDirection.y = currentWaypoint.y;
-                        moveDirection = math.normalizesafe(moveDirection);
-
                         float dot = math.dot(transformForward, directionToWaypoint);
-
-                        float side = math.cross(transformForward, directionToWaypoint).y;
+                        float3 cross = math.cross(transformForward, directionToWaypoint);
 
                         float rotateSlowdownFactor = 1 - math.saturate((dot + 1f) * 0.5f);
 
-                        mover.CurrentRotationSpeed += (side > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
+                        mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
 
                         if (mover.SlowWhenNotFacingTarget)
-                            facingFactor = 1 - rotateSlowdownFactor;
+                            facingFactor = math.saturate((dot + 1f) * 0.5f);
                     }
                     else
                     {
@@ -71,8 +66,8 @@ namespace Entities.Systems.Pathfinding.Movers
                     }
 
                     mover.CurrentSpeed += mover.Acceleration * DeltaTime;
-                    mover.CurrentSpeed = math.min(mover.CurrentSpeed, mover.MaxSpeed);
                     mover.CurrentSpeed *= facingFactor;
+                    mover.CurrentSpeed = math.min(mover.CurrentSpeed, mover.MaxSpeed);
                 }
                 else
                 {
@@ -82,7 +77,7 @@ namespace Entities.Systems.Pathfinding.Movers
                 }
 
                 localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
-                localTransform.Rotation = math.mul(localTransform.Rotation, quaternion.RotateY(mover.CurrentRotationSpeed * DeltaTime));
+                localTransform.Rotation = math.mul(localTransform.Rotation, quaternion.RotateY(math.radians(mover.CurrentRotationSpeed) * DeltaTime));
 
                 agent.ReachedEndOfPath = math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance;
                 agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
