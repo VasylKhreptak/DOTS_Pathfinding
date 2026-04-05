@@ -36,33 +36,32 @@ namespace Entities.Systems.Pathfinding.Movers
                 float3 endOfPath = pathWaypoints[^1].Value;
                 float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
                 float3 transformForward = localTransform.Forward();
-                float3 moveDirection = transformForward;
-                moveDirection.y = currentWaypointPosition.y;
-                moveDirection = math.normalizesafe(moveDirection);
+                float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
+                float3 moveDirection = directionToWaypoint;
 
                 if (agent.ReachedEndOfPath == false && agent.ReachedDestination == false && mover.CanMove)
                 {
-                    float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
                     float facingFactor = 1f;
 
                     if (mover.EnableRotation)
                     {
-                        float dot = math.dot(transformForward, directionToWaypoint);
-                        float3 cross = math.cross(transformForward, directionToWaypoint);
+                        float3 flatDirectionToWaypoint = math.normalize(new float3(directionToWaypoint.x, 0f, directionToWaypoint.z));
 
-                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 4f;
+                        float dot = math.dot(transformForward, flatDirectionToWaypoint);
+                        float3 cross = math.cross(transformForward, flatDirectionToWaypoint);
 
+                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 6f;
+                        
                         mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
 
                         if (mover.SlowWhenNotFacingTarget)
-                            facingFactor = math.clamp(dot, 0f, 1f);
+                            facingFactor = math.clamp(dot * 1.2f, 0f, 1f);
                     }
                     else
                     {
                         mover.CurrentRotationSpeed = 0f;
-                        moveDirection = directionToWaypoint;
                     }
 
                     mover.CurrentSpeed += mover.Acceleration * DeltaTime;
