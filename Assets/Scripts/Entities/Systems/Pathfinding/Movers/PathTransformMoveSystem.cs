@@ -51,7 +51,7 @@ namespace Entities.Systems.Pathfinding.Movers
                         float3 cross = math.cross(transformForward, flatDirectionToWaypoint);
 
                         float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 6f;
-                        
+
                         mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
                         mover.CurrentRotationSpeed *= rotateSlowdownFactor;
                         mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
@@ -82,30 +82,50 @@ namespace Entities.Systems.Pathfinding.Movers
                 agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
             }
 
-            private float3 GetCurrentWaypoint(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover)
+            private float3 GetCurrentWaypoint(ref LocalTransform localTransform,
+                DynamicBuffer<PathWaypoint> pathWaypoints,
+                ref PathTransformMover mover)
             {
-                float3 transformPosition = localTransform.Position;
-                float3 closestWaypoint = float3.zero;
+                float3 position = localTransform.Position;
+
                 float leastDistance = float.PositiveInfinity;
-                int closestWaypointIndex = -1;
+                int closestIndex = -1;
 
                 for (int i = 0; i < pathWaypoints.Length; i++)
                 {
-                    float3 pathWaypoint = pathWaypoints[i].Value;
-                    float distance = math.distance(transformPosition, pathWaypoint);
+                    float distance = math.distance(position,
+                        pathWaypoints[i].Value);
 
                     if (distance < leastDistance)
                     {
-                        closestWaypoint = pathWaypoint;
                         leastDistance = distance;
-                        closestWaypointIndex = i;
+                        closestIndex = i;
                     }
                 }
 
-                if (math.distance(transformPosition, closestWaypoint) < mover.PickNextWaypointDistance && closestWaypointIndex < pathWaypoints.Length - 1)
-                    return pathWaypoints[closestWaypointIndex + 1].Value;
+                if (closestIndex == -1)
+                    return position;
 
-                return closestWaypoint;
+                float remainingDistance = mover.PickNextWaypointDistance;
+
+                for (int i = closestIndex; i < pathWaypoints.Length - 1; i++)
+                {
+                    float3 start = pathWaypoints[i].Value;
+                    float3 end = pathWaypoints[i + 1].Value;
+
+                    float segmentLength = math.distance(start, end);
+
+                    if (remainingDistance <= segmentLength)
+                    {
+                        float t = remainingDistance / segmentLength;
+
+                        return math.lerp(start, end, t);
+                    }
+
+                    remainingDistance -= segmentLength;
+                }
+
+                return pathWaypoints[closestIndex].Value;
             }
         }
     }

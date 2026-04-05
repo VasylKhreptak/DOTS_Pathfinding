@@ -43,7 +43,6 @@ namespace Entities.Authoring.Pathfinding.Movers
                     Deceleration = authoring._deceleration,
                     EnableRotation = authoring._enableRotation,
                     MaxRotationSpeed = authoring._maxRotationSpeed,
-                    AngularAcceleration = authoring._angularAcceleration,
                     SlowWhenNotFacingTarget = authoring._slowWhenNotFacingTarget,
                     PickNextWaypointDistance = authoring._pickNextWaypointDistance,
                     EndReachedDistance = authoring._endReachedDistance,
