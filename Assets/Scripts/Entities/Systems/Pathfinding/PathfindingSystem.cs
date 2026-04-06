@@ -283,7 +283,7 @@ namespace Entities.Systems.Pathfinding
                     seeker.RequestStartPosition = localToWorld.Position;
                     seeker.RequestEndPosition = destination.Value;
 
-                    if (math.distancesq(localToWorld.Position, destination.Value) < 0.0001f)
+                    if (math.distancesq(localToWorld.Position, destination.Value) < 0.01f)
                     {
                         pathWaypoints.Clear();
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestStartPosition });
