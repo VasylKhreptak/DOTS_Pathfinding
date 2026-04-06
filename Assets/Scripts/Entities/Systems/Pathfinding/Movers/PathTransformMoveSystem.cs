@@ -175,7 +175,7 @@ namespace Entities.Systems.Pathfinding.Movers
                 mover.CurrentSpeed = math.max(mover.CurrentSpeed, 0f);
             }
 
-            public struct WaypointInfo
+            private struct WaypointInfo
             {
                 public float3 Position;
                 public int Index;
