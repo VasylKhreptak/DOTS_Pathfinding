@@ -1,4 +1,5 @@
 ﻿using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Entities.Authoring.Pathfinding.Movers
@@ -64,5 +65,7 @@ namespace Entities.Authoring.Pathfinding.Movers
         public float SlowdownDistance;
 
         public float CurrentSpeed;
+        public float3 CurrentWaypoint;
+        public int CurrentWaypointIndex;
     }
 }

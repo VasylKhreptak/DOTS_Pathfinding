@@ -1,5 +1,6 @@
 ﻿using Entities.Authoring.Pathfinding;
 using Entities.Authoring.Pathfinding.Movers;
+using Entities.Components;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -11,11 +12,17 @@ namespace Entities.Systems.Pathfinding.Movers
     [DisableAutoCreation]
     public partial struct PathTransformMoveSystem : ISystem
     {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TickCount>();
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             HandleMovementJob handleMovementJob = new HandleMovementJob()
             {
+                TickCount = SystemAPI.GetSingleton<TickCount>(),
                 DeltaTime = state.WorldUnmanaged.Time.DeltaTime
             };
 
@@ -25,19 +32,42 @@ namespace Entities.Systems.Pathfinding.Movers
         [BurstCompile]
         private partial struct HandleMovementJob : IJobEntity
         {
+            public TickCount TickCount;
             public float DeltaTime;
 
             public void Execute(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover, in Destination destination,
-                ref Agent agent)
+                ref Agent agent, in Seeker seeker)
             {
                 float3 transformForward = localTransform.Forward();
                 float3 moveDirection = transformForward;
 
                 if (IsPathValid(pathWaypoints))
                 {
+                    if (TickCount.Value == seeker.LastCalculationTickCount)
+                    {
+                        WaypointInfo waypointInfo = GetCurrentWaypointInfo(ref localTransform, pathWaypoints, ref mover);
+
+                        mover.CurrentWaypoint = waypointInfo.Position;
+                        mover.CurrentWaypointIndex = waypointInfo.Index;
+                    }
+
+                    if (math.distance(localTransform.Position, mover.CurrentWaypoint) < mover.PickNextWaypointDistance)
+                    {
+                        mover.CurrentWaypointIndex = math.min(mover.CurrentWaypointIndex + 1, pathWaypoints.Length - 1);
+                        mover.CurrentWaypoint = pathWaypoints[mover.CurrentWaypointIndex].Value;
+                    }
+
                     float3 endOfPath = pathWaypoints[^1].Value;
-                    float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
-                    float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
+
+                    if (math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance / 10f)
+                    {
+                        agent.ReachedEndOfPath = true;
+                        agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
+                        mover.CurrentSpeed = 0f;
+                        return;
+                    }
+
+                    float3 directionToWaypoint = math.normalizesafe(mover.CurrentWaypoint - localTransform.Position);
 
                     if (mover.EnableRotation)
                     {
@@ -95,8 +125,10 @@ namespace Entities.Systems.Pathfinding.Movers
 
             private bool IsPathValid(DynamicBuffer<PathWaypoint> pathWaypoints) => pathWaypoints.IsEmpty == false && pathWaypoints.Length > 1;
 
-            private float3 GetCurrentWaypoint(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover)
+            private WaypointInfo GetCurrentWaypointInfo(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover)
             {
+                WaypointInfo waypointInfo = new WaypointInfo();
+
                 float3 transformPosition = localTransform.Position;
                 float3 closestWaypoint = float3.zero;
                 float leastDistance = float.PositiveInfinity;
@@ -116,9 +148,15 @@ namespace Entities.Systems.Pathfinding.Movers
                 }
 
                 if (math.distance(transformPosition, closestWaypoint) < mover.PickNextWaypointDistance && closestWaypointIndex < pathWaypoints.Length - 1)
-                    return pathWaypoints[closestWaypointIndex + 1].Value;
+                {
+                    waypointInfo.Position = pathWaypoints[closestWaypointIndex + 1].Value;
+                    waypointInfo.Index = closestWaypointIndex + 1;
+                    return waypointInfo;
+                }
 
-                return closestWaypoint;
+                waypointInfo.Position = closestWaypoint;
+                waypointInfo.Index = closestWaypointIndex;
+                return waypointInfo;
             }
 
             private quaternion RotateTowards(quaternion from, quaternion to, float maxDegreesDelta)
@@ -131,6 +169,12 @@ namespace Entities.Systems.Pathfinding.Movers
             {
                 mover.CurrentSpeed -= mover.Deceleration * deltaTime;
                 mover.CurrentSpeed = math.max(mover.CurrentSpeed, 0f);
+            }
+
+            public struct WaypointInfo
+            {
+                public float3 Position;
+                public int Index;
             }
         }
     }
