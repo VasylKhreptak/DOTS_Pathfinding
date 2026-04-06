@@ -12,8 +12,7 @@ namespace Editor.Pathfinding.Movers
         private SerializedProperty _acceleration;
         private SerializedProperty _deceleration;
         private SerializedProperty _enableRotation;
-        private SerializedProperty _maxRotationSpeed;
-        private SerializedProperty _angularAcceleration;
+        private SerializedProperty _rotationSpeed;
         private SerializedProperty _slowWhenNotFacingTarget;
 
         private SerializedProperty _pickNextWaypointDistance;
@@ -28,8 +27,7 @@ namespace Editor.Pathfinding.Movers
             _deceleration = serializedObject.FindProperty("_deceleration");
 
             _enableRotation = serializedObject.FindProperty("_enableRotation");
-            _maxRotationSpeed = serializedObject.FindProperty("_maxRotationSpeed");
-            _angularAcceleration = serializedObject.FindProperty("_angularAcceleration");
+            _rotationSpeed = serializedObject.FindProperty("_rotationSpeed");
             _slowWhenNotFacingTarget = serializedObject.FindProperty("_slowWhenNotFacingTarget");
 
             _pickNextWaypointDistance = serializedObject.FindProperty("_pickNextWaypointDistance");
@@ -56,8 +54,7 @@ namespace Editor.Pathfinding.Movers
 
             if (_enableRotation.boolValue)
             {
-                EditorGUILayout.PropertyField(_maxRotationSpeed);
-                EditorGUILayout.PropertyField(_angularAcceleration);
+                EditorGUILayout.PropertyField(_rotationSpeed);
                 EditorGUILayout.PropertyField(_slowWhenNotFacingTarget);
             }
 

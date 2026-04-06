@@ -30,105 +30,107 @@ namespace Entities.Systems.Pathfinding.Movers
             public void Execute(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover, in Destination destination,
                 ref Agent agent)
             {
-                if (pathWaypoints.IsEmpty || pathWaypoints.Length < 2)
-                    return;
-
-                float3 endOfPath = pathWaypoints[^1].Value;
-                float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
                 float3 transformForward = localTransform.Forward();
-                float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
-                float3 moveDirection = directionToWaypoint;
+                float3 moveDirection = transformForward;
 
-                if (agent.ReachedEndOfPath == false && agent.ReachedDestination == false && mover.CanMove)
+                if (IsPathValid(pathWaypoints))
                 {
-                    float facingFactor = 1f;
+                    float3 endOfPath = pathWaypoints[^1].Value;
+                    float3 currentWaypointPosition = GetCurrentWaypoint(ref localTransform, pathWaypoints, ref mover);
+                    float3 directionToWaypoint = math.normalizesafe(currentWaypointPosition - localTransform.Position);
 
                     if (mover.EnableRotation)
                     {
-                        float3 flatDirectionToWaypoint = math.normalize(new float3(directionToWaypoint.x, 0f, directionToWaypoint.z));
-
-                        float dot = math.dot(transformForward, flatDirectionToWaypoint);
-                        float3 cross = math.cross(transformForward, flatDirectionToWaypoint);
-
-                        float rotateSlowdownFactor = 1 - math.clamp(dot, 0f, 1f) / 5f;
-
-                        mover.CurrentRotationSpeed += (cross.y > 0f ? 1 : -1) * mover.AngularAcceleration * DeltaTime;
-                        mover.CurrentRotationSpeed *= rotateSlowdownFactor;
-                        mover.CurrentRotationSpeed = math.clamp(mover.CurrentRotationSpeed, -mover.MaxRotationSpeed, mover.MaxRotationSpeed);
-
-                        if (mover.SlowWhenNotFacingTarget)
-                            facingFactor = math.clamp(dot + 0.2f, 0f, 1f);
+                        moveDirection.y = directionToWaypoint.y;
+                        moveDirection = math.normalizesafe(moveDirection);
                     }
                     else
                     {
-                        mover.CurrentRotationSpeed -= mover.AngularAcceleration * DeltaTime;
-                        mover.CurrentRotationSpeed = math.max(mover.CurrentRotationSpeed, 0f);
+                        moveDirection = directionToWaypoint;
                     }
 
-                    mover.CurrentSpeed += mover.Acceleration * DeltaTime;
-                    mover.CurrentSpeed *= facingFactor;
-                    mover.CurrentSpeed = math.min(mover.CurrentSpeed, mover.MaxSpeed);
+                    if (mover.CanMove)
+                    {
+                        float facingFactor = 1f;
+
+                        if (mover.EnableRotation)
+                        {
+                            float3 flatDirectionToWaypoint = math.normalize(new float3(directionToWaypoint.x, 0f, directionToWaypoint.z));
+
+                            float dot = math.dot(transformForward, flatDirectionToWaypoint);
+
+                            quaternion targetRotation = quaternion.LookRotationSafe(flatDirectionToWaypoint, math.up());
+
+                            float rotateSlowdownFactor = 1 - math.clamp(dot / 1.1f, 0f, 1f);
+
+                            localTransform.Rotation = RotateTowards(localTransform.Rotation, targetRotation, mover.RotationSpeed * DeltaTime * rotateSlowdownFactor);
+
+                            if (mover.EnableRotation && mover.SlowWhenNotFacingTarget)
+                                facingFactor = math.clamp(dot, 0f, 1f);
+                        }
+
+                        float distanceToEndOfPath = math.distance(localTransform.Position, endOfPath);
+
+                        float distanceSlowdownFactor = math.clamp(distanceToEndOfPath / mover.SlowdownDistance, 0f, 1f);
+
+                        mover.CurrentSpeed += mover.Acceleration * DeltaTime;
+                        mover.CurrentSpeed = math.min(mover.CurrentSpeed, mover.MaxSpeed * facingFactor * distanceSlowdownFactor);
+                    }
+                    else
+                    {
+                        ApplyDeceleration(ref mover, DeltaTime);
+                    }
+
+                    agent.ReachedEndOfPath = math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance;
                 }
                 else
                 {
-                    mover.CurrentSpeed -= mover.Deceleration * DeltaTime;
-                    mover.CurrentSpeed = math.max(mover.CurrentSpeed, 0f);
-
-                    mover.CurrentRotationSpeed -= mover.AngularAcceleration * DeltaTime;
-                    mover.CurrentRotationSpeed = math.max(mover.CurrentRotationSpeed, 0f);
+                    ApplyDeceleration(ref mover, DeltaTime);
+                    agent.ReachedEndOfPath = false;
                 }
 
                 localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
-                localTransform.Rotation = math.mul(localTransform.Rotation, quaternion.RotateY(math.radians(mover.CurrentRotationSpeed) * DeltaTime));
-
-                agent.ReachedEndOfPath = math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance;
                 agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
             }
 
-            private float3 GetCurrentWaypoint(ref LocalTransform localTransform,
-                DynamicBuffer<PathWaypoint> pathWaypoints,
-                ref PathTransformMover mover)
-            {
-                float3 position = localTransform.Position;
+            private bool IsPathValid(DynamicBuffer<PathWaypoint> pathWaypoints) => pathWaypoints.IsEmpty == false && pathWaypoints.Length > 1;
 
+            private float3 GetCurrentWaypoint(ref LocalTransform localTransform, DynamicBuffer<PathWaypoint> pathWaypoints, ref PathTransformMover mover)
+            {
+                float3 transformPosition = localTransform.Position;
+                float3 closestWaypoint = float3.zero;
                 float leastDistance = float.PositiveInfinity;
-                int closestIndex = -1;
+                int closestWaypointIndex = -1;
 
                 for (int i = 0; i < pathWaypoints.Length; i++)
                 {
-                    float distance = math.distance(position,
-                        pathWaypoints[i].Value);
+                    float3 pathWaypoint = pathWaypoints[i].Value;
+                    float distance = math.distance(transformPosition, pathWaypoint);
 
                     if (distance < leastDistance)
                     {
+                        closestWaypoint = pathWaypoint;
                         leastDistance = distance;
-                        closestIndex = i;
+                        closestWaypointIndex = i;
                     }
                 }
 
-                if (closestIndex == -1)
-                    return position;
+                if (math.distance(transformPosition, closestWaypoint) < mover.PickNextWaypointDistance && closestWaypointIndex < pathWaypoints.Length - 1)
+                    return pathWaypoints[closestWaypointIndex + 1].Value;
 
-                float remainingDistance = mover.PickNextWaypointDistance;
+                return closestWaypoint;
+            }
 
-                for (int i = closestIndex; i < pathWaypoints.Length - 1; i++)
-                {
-                    float3 start = pathWaypoints[i].Value;
-                    float3 end = pathWaypoints[i + 1].Value;
+            private quaternion RotateTowards(quaternion from, quaternion to, float maxDegreesDelta)
+            {
+                float angle = math.angle(from, to);
+                return math.slerp(from, to, math.min(1f, math.radians(maxDegreesDelta) / angle));
+            }
 
-                    float segmentLength = math.distance(start, end);
-
-                    if (remainingDistance <= segmentLength)
-                    {
-                        float t = remainingDistance / segmentLength;
-
-                        return math.lerp(start, end, t);
-                    }
-
-                    remainingDistance -= segmentLength;
-                }
-
-                return pathWaypoints[closestIndex].Value;
+            private void ApplyDeceleration(ref PathTransformMover mover, float deltaTime)
+            {
+                mover.CurrentSpeed -= mover.Deceleration * deltaTime;
+                mover.CurrentSpeed = math.max(mover.CurrentSpeed, 0f);
             }
         }
     }

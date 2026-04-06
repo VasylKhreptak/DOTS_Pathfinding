@@ -10,8 +10,7 @@ namespace Entities.Authoring.Pathfinding.Movers
         [SerializeField] private float _acceleration = 1f;
         [SerializeField] private float _deceleration = 1f;
         [SerializeField] private bool _enableRotation = true;
-        [SerializeField] private float _maxRotationSpeed = 360f;
-        [SerializeField] private float _angularAcceleration = 180f;
+        [SerializeField] private float _rotationSpeed = 360f;
         [SerializeField] private bool _slowWhenNotFacingTarget = true;
         [SerializeField] private float _pickNextWaypointDistance = 2;
         [SerializeField] private float _endReachedDistance = 0.2f;
@@ -22,8 +21,7 @@ namespace Entities.Authoring.Pathfinding.Movers
             _maxSpeed = Mathf.Max(0f, _maxSpeed);
             _acceleration = Mathf.Max(0f, _acceleration);
             _deceleration = Mathf.Max(0f, _deceleration);
-            _maxRotationSpeed = Mathf.Max(0f, _maxRotationSpeed);
-            _angularAcceleration = Mathf.Max(0f, _angularAcceleration);
+            _rotationSpeed = Mathf.Max(0f, _rotationSpeed);
             _pickNextWaypointDistance = Mathf.Max(0f, _pickNextWaypointDistance);
             _endReachedDistance = Mathf.Max(0f, _endReachedDistance);
             _slowdownDistance = Mathf.Max(_endReachedDistance, _slowdownDistance);
@@ -42,7 +40,7 @@ namespace Entities.Authoring.Pathfinding.Movers
                     Acceleration = authoring._acceleration,
                     Deceleration = authoring._deceleration,
                     EnableRotation = authoring._enableRotation,
-                    MaxRotationSpeed = authoring._maxRotationSpeed,
+                    RotationSpeed = authoring._rotationSpeed,
                     SlowWhenNotFacingTarget = authoring._slowWhenNotFacingTarget,
                     PickNextWaypointDistance = authoring._pickNextWaypointDistance,
                     EndReachedDistance = authoring._endReachedDistance,
@@ -59,14 +57,12 @@ namespace Entities.Authoring.Pathfinding.Movers
         public float Acceleration;
         public float Deceleration;
         public bool EnableRotation;
-        public float MaxRotationSpeed;
-        public float AngularAcceleration;
+        public float RotationSpeed;
         public bool SlowWhenNotFacingTarget;
         public float PickNextWaypointDistance;
         public float EndReachedDistance;
         public float SlowdownDistance;
 
         public float CurrentSpeed;
-        public float CurrentRotationSpeed;
     }
 }
