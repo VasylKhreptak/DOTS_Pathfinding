@@ -12,6 +12,7 @@ namespace Entities.Systems.Pathfinding.Movers
     [DisableAutoCreation]
     public partial struct PathTransformMoveSystem : ISystem
     {
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TickCount>();
