@@ -113,15 +113,15 @@ namespace Entities.Systems.Pathfinding.Movers
                         ApplyDeceleration(ref mover, DeltaTime);
                     }
 
+                    localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
                     agent.ReachedEndOfPath = math.distancesq(localTransform.Position, endOfPath) < endReachedDistanceSq;
-                }
-                else
-                {
-                    ApplyDeceleration(ref mover, DeltaTime);
-                    agent.ReachedEndOfPath = false;
+                    agent.ReachedDestination = math.distancesq(localTransform.Position, destination.Value) < endReachedDistanceSq;
+                    return;
                 }
 
+                ApplyDeceleration(ref mover, DeltaTime);
                 localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
+                agent.ReachedEndOfPath = false;
                 agent.ReachedDestination = math.distancesq(localTransform.Position, destination.Value) < endReachedDistanceSq;
             }
 
