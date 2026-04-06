@@ -304,7 +304,7 @@ namespace Entities.Systems.Pathfinding
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
-
+                    
                     NavMeshLocation endLocation = query.MapLocation(seeker.RequestEndPosition, new float3(seeker.DestinationPositionSnappingDistance), agent.AgentID);
 
                     if (!query.IsValid(endLocation))
