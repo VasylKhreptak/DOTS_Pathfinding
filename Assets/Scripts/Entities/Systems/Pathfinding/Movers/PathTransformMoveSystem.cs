@@ -41,6 +41,8 @@ namespace Entities.Systems.Pathfinding.Movers
                 float3 transformForward = localTransform.Forward();
                 float3 moveDirection = transformForward;
 
+                float endReachedDistanceSq = mover.EndReachedDistance * mover.EndReachedDistance;
+
                 if (IsPathValid(pathWaypoints))
                 {
                     if (TickCount.Value == seeker.LastCalculationTickCount)
@@ -51,7 +53,7 @@ namespace Entities.Systems.Pathfinding.Movers
                         mover.CurrentWaypointIndex = waypointInfo.Index;
                     }
 
-                    if (math.distance(localTransform.Position, mover.CurrentWaypoint) < mover.PickNextWaypointDistance)
+                    if (math.distancesq(localTransform.Position, mover.CurrentWaypoint) < mover.PickNextWaypointDistance * mover.PickNextWaypointDistance)
                     {
                         mover.CurrentWaypointIndex = math.min(mover.CurrentWaypointIndex + 1, pathWaypoints.Length - 1);
                         mover.CurrentWaypoint = pathWaypoints[mover.CurrentWaypointIndex].Value;
@@ -59,10 +61,10 @@ namespace Entities.Systems.Pathfinding.Movers
 
                     float3 endOfPath = pathWaypoints[^1].Value;
 
-                    if (math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance / 10f)
+                    if (math.distancesq(localTransform.Position, endOfPath) < endReachedDistanceSq / 5f)
                     {
                         agent.ReachedEndOfPath = true;
-                        agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
+                        agent.ReachedDestination = math.distancesq(localTransform.Position, destination.Value) < endReachedDistanceSq;
                         mover.CurrentSpeed = 0f;
                         return;
                     }
@@ -99,9 +101,9 @@ namespace Entities.Systems.Pathfinding.Movers
                                 facingFactor = math.clamp(dot, 0f, 1f);
                         }
 
-                        float distanceToEndOfPath = math.distance(localTransform.Position, endOfPath);
-
-                        float distanceSlowdownFactor = math.clamp(distanceToEndOfPath / mover.SlowdownDistance, 0f, 1f);
+                        float distanceToEndOfPathSq = math.distancesq(localTransform.Position, endOfPath);
+                        float slowdownDistanceSq = mover.SlowdownDistance * mover.SlowdownDistance;
+                        float distanceSlowdownFactor = math.clamp(distanceToEndOfPathSq / slowdownDistanceSq, 0f, 1f);
 
                         mover.CurrentSpeed += mover.Acceleration * DeltaTime;
                         mover.CurrentSpeed = math.min(mover.CurrentSpeed, mover.MaxSpeed * facingFactor * distanceSlowdownFactor);
@@ -111,7 +113,7 @@ namespace Entities.Systems.Pathfinding.Movers
                         ApplyDeceleration(ref mover, DeltaTime);
                     }
 
-                    agent.ReachedEndOfPath = math.distance(localTransform.Position, endOfPath) < mover.EndReachedDistance;
+                    agent.ReachedEndOfPath = math.distancesq(localTransform.Position, endOfPath) < endReachedDistanceSq;
                 }
                 else
                 {
@@ -120,7 +122,7 @@ namespace Entities.Systems.Pathfinding.Movers
                 }
 
                 localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
-                agent.ReachedDestination = math.distance(localTransform.Position, destination.Value) < mover.EndReachedDistance;
+                agent.ReachedDestination = math.distancesq(localTransform.Position, destination.Value) < endReachedDistanceSq;
             }
 
             private bool IsPathValid(DynamicBuffer<PathWaypoint> pathWaypoints) => pathWaypoints.IsEmpty == false && pathWaypoints.Length > 1;
@@ -131,23 +133,25 @@ namespace Entities.Systems.Pathfinding.Movers
 
                 float3 transformPosition = localTransform.Position;
                 float3 closestWaypoint = float3.zero;
-                float leastDistance = float.PositiveInfinity;
+                float leastSquaredDistance = float.PositiveInfinity;
                 int closestWaypointIndex = -1;
 
                 for (int i = 0; i < pathWaypoints.Length; i++)
                 {
                     float3 pathWaypoint = pathWaypoints[i].Value;
-                    float distance = math.distance(transformPosition, pathWaypoint);
+                    float distance = math.distancesq(transformPosition, pathWaypoint);
 
-                    if (distance < leastDistance)
+                    if (distance < leastSquaredDistance)
                     {
                         closestWaypoint = pathWaypoint;
-                        leastDistance = distance;
+                        leastSquaredDistance = distance;
                         closestWaypointIndex = i;
                     }
                 }
 
-                if (math.distance(transformPosition, closestWaypoint) < mover.PickNextWaypointDistance && closestWaypointIndex < pathWaypoints.Length - 1)
+                float pickNextDistanceSq = mover.PickNextWaypointDistance * mover.PickNextWaypointDistance;
+
+                if (math.distancesq(transformPosition, closestWaypoint) < pickNextDistanceSq && closestWaypointIndex < pathWaypoints.Length - 1)
                 {
                     waypointInfo.Position = pathWaypoints[closestWaypointIndex + 1].Value;
                     waypointInfo.Index = closestWaypointIndex + 1;
