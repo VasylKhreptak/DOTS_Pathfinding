@@ -304,7 +304,7 @@ namespace Entities.Systems.Pathfinding
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
-                    
+
                     NavMeshLocation endLocation = query.MapLocation(seeker.RequestEndPosition, new float3(seeker.DestinationPositionSnappingDistance), agent.AgentID);
 
                     if (!query.IsValid(endLocation))
@@ -360,19 +360,12 @@ namespace Entities.Systems.Pathfinding
                         return;
                     }
 
-                    if (pathSize < 2)
-                    {
-                        pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
-                        seeker.Status = PathStatus.Failure;
-                        return;
-                    }
+                    int collectionSize = math.max(2, pathSize);
 
-                    NativeArray<NavMeshLocation> result = new NativeArray<NavMeshLocation>(pathSize, Allocator.Temp);
-                    NativeArray<StraightPathFlags> flags = new NativeArray<StraightPathFlags>(pathSize, Allocator.Temp);
-                    NativeArray<float> vertexSize = new NativeArray<float>(pathSize, Allocator.Temp);
-                    NativeArray<PolygonId> polygonIds = new NativeArray<PolygonId>(pathSize + 1, Allocator.Temp);
+                    NativeArray<NavMeshLocation> result = new NativeArray<NavMeshLocation>(collectionSize, Allocator.Temp);
+                    NativeArray<StraightPathFlags> flags = new NativeArray<StraightPathFlags>(collectionSize, Allocator.Temp);
+                    NativeArray<float> vertexSize = new NativeArray<float>(collectionSize, Allocator.Temp);
+                    NativeArray<PolygonId> polygonIds = new NativeArray<PolygonId>(collectionSize, Allocator.Temp);
 
                     void DisposeTempCollections()
                     {
@@ -408,6 +401,9 @@ namespace Entities.Systems.Pathfinding
                     }
 
                     pathWaypoints.Clear();
+
+                    if (result.Length == 1)
+                        pathWaypoints.Add(new PathWaypoint() { Value = seeker.NavMeshStartPosition });
 
                     for (int i = 0; i < result.Length; i++)
                     {
