@@ -98,7 +98,7 @@ namespace Entities.Systems.Pathfinding.Movers
 
                             localTransform.Rotation = RotateTowards(localTransform.Rotation, targetRotation, mover.RotationSpeed * DeltaTime * rotateSlowdownFactor);
 
-                            if (mover.EnableRotation && mover.SlowWhenNotFacingTarget)
+                            if (mover.SlowWhenNotFacingTarget)
                                 facingFactor = math.clamp(dot, 0f, 1f);
                         }
 
