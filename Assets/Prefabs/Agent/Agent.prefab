@@ -192,7 +192,7 @@ GameObject:
   - component: {fileID: 3176450514429634615}
   - component: {fileID: 1994982940801841144}
   - component: {fileID: 9005012149215730810}
-  - component: {fileID: 523115986639736748}
+  - component: {fileID: -4789035901395137436}
   m_Layer: 0
   m_Name: Agent
   m_TagString: Untagged
@@ -380,7 +380,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _value: 0.3
---- !u!114 &523115986639736748
+--- !u!114 &-4789035901395137436
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -389,7 +389,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 8045355591343965381}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 12200f5053c34ee8b319161d916d6dfb, type: 3}
+  m_Script: {fileID: 11500000, guid: e3f29a1f5f424362b8b11b660e755552, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _value: 1
+  _minInterval: 0.3
+  _minDistance: 10
+  _maxInterval: 4
+  _maxDistance: 300
