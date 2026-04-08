@@ -27,7 +27,7 @@ namespace Entities.Bakers.Pathfinding
         }
     }
 
-    public struct NavMeshObstacle : IComponentData, IEnableableComponent
+    public struct NavMeshObstacle : IComponentData
     {
         public NavMeshObstacleShape Shape;
         public float3 Center;
