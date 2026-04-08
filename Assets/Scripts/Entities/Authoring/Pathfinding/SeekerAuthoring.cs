@@ -39,7 +39,7 @@ namespace Entities.Authoring.Pathfinding
         }
     }
 
-    public struct Seeker : IComponentData, IEnableableComponent
+    public struct Seeker : IComponentData
     {
         public float StartPositionSnappingDistance;
         public float DestinationPositionSnappingDistance;

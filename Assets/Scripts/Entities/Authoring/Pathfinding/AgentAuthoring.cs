@@ -26,7 +26,7 @@ namespace Entities.Authoring.Pathfinding
         }
     }
 
-    public struct Agent : IComponentData, IEnableableComponent
+    public struct Agent : IComponentData
     {
         public int AgentID;
         public bool ReachedEndOfPath;

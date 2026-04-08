@@ -40,7 +40,7 @@ namespace Entities.Authoring.Pathfinding.Modifiers
         }
     }
 
-    public struct SmoothModifier : IComponentData, IEnableableComponent
+    public struct SmoothModifier : IComponentData
     {
         public SmoothType SmoothType;
         public int Subdivisions;

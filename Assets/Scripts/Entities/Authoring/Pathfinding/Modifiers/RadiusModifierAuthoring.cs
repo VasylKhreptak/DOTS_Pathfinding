@@ -23,7 +23,7 @@ namespace Entities.Authoring.Pathfinding.Modifiers
         }
     }
 
-    public struct RadiusModifier : IComponentData, IEnableableComponent
+    public struct RadiusModifier : IComponentData
     {
         public float Radius;
         public float Detail;
