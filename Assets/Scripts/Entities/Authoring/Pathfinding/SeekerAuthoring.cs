@@ -8,13 +8,11 @@ namespace Entities.Authoring.Pathfinding
     {
         [SerializeField] private float _startPositionSnappingDistance = 500f;
         [SerializeField] private float _destinationPositionSnappingDistance = 500f;
-        [SerializeField] private float _calculateInterval = 0.3f;
 
         #region MonoBehaviour
 
         private void OnValidate()
         {
-            _calculateInterval = Mathf.Max(0.1f, _calculateInterval);
             _startPositionSnappingDistance = Mathf.Max(1, _startPositionSnappingDistance);
             _destinationPositionSnappingDistance = Mathf.Max(1, _destinationPositionSnappingDistance);
         }
@@ -31,7 +29,6 @@ namespace Entities.Authoring.Pathfinding
                 {
                     StartPositionSnappingDistance = authoring._startPositionSnappingDistance,
                     DestinationPositionSnappingDistance = authoring._destinationPositionSnappingDistance,
-                    CalculateInterval = authoring._calculateInterval
                 };
 
                 AddComponent(entity, seeker);
@@ -43,11 +40,10 @@ namespace Entities.Authoring.Pathfinding
     {
         public float StartPositionSnappingDistance;
         public float DestinationPositionSnappingDistance;
-        public float CalculateInterval;
 
         public PathStatus Status;
-        public float LastCalculationTime;
-        public long LastCalculationTickCount;
+        public float LastUpdateTime;
+        public long LastUpdateTickCount;
 
         public float3 RequestStartPosition;
         public float3 RequestEndPosition;

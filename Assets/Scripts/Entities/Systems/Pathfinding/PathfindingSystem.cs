@@ -288,8 +288,8 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Clear();
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestStartPosition });
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestEndPosition });
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Success;
                         return;
                     }
@@ -299,8 +299,8 @@ namespace Entities.Systems.Pathfinding
                     if (!query.IsValid(startLocation))
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -310,8 +310,8 @@ namespace Entities.Systems.Pathfinding
                     if (!query.IsValid(endLocation))
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -321,8 +321,8 @@ namespace Entities.Systems.Pathfinding
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -340,8 +340,8 @@ namespace Entities.Systems.Pathfinding
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -354,8 +354,8 @@ namespace Entities.Systems.Pathfinding
                     if ((status & PathQueryStatus.Success) == 0)
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -394,8 +394,8 @@ namespace Entities.Systems.Pathfinding
                     if ((status & PathQueryStatus.Success) == 0)
                     {
                         pathWaypoints.Clear();
-                        seeker.LastCalculationTickCount = TickCount.Value;
-                        seeker.LastCalculationTime = ElapsedTime;
+                        seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
                     }
@@ -421,8 +421,8 @@ namespace Entities.Systems.Pathfinding
                     }
 
                     DisposeTempCollections();
-                    seeker.LastCalculationTickCount = TickCount.Value;
-                    seeker.LastCalculationTime = ElapsedTime;
+                    seeker.LastUpdateTickCount = TickCount.Value;
+                    seeker.LastUpdateTime = ElapsedTime;
                     seeker.Status = PathStatus.Success;
                 }
             }

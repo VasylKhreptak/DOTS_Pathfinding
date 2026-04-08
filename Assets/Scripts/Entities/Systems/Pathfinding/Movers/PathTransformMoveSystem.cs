@@ -46,7 +46,7 @@ namespace Entities.Systems.Pathfinding.Movers
 
                 if (IsPathValid(pathWaypoints))
                 {
-                    if (TickCount.Value == seeker.LastCalculationTickCount)
+                    if (TickCount.Value == seeker.LastUpdateTickCount)
                     {
                         WaypointInfo waypointInfo = GetCurrentWaypointInfo(ref localTransform, pathWaypoints, ref mover);
 

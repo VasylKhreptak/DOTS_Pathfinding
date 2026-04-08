@@ -38,7 +38,7 @@ namespace Entities.Systems.Pathfinding.Modifiers
 
             public void Execute(in Seeker seeker, ref DynamicBuffer<PathWaypoint> path, in SmoothModifier modifier)
             {
-                if (TickCount.Value != seeker.LastCalculationTickCount)
+                if (TickCount.Value != seeker.LastUpdateTickCount)
                     return;
 
                 switch (modifier.SmoothType)
