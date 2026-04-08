@@ -84,7 +84,7 @@ namespace Entities.Systems.Pathfinding.Movers
 
                             quaternion targetRotation = quaternion.LookRotationSafe(flatDirectionToWaypoint, math.up());
 
-                            float rotateSlowdownFactor = 1 - math.clamp(dot / 1.2f, 0f, 1f);
+                            float rotateSlowdownFactor = 1 - math.clamp(dot / 1.15f, 0f, 1f);
 
                             localTransform.Rotation = RotateTowards(localTransform.Rotation, targetRotation, mover.RotationSpeed * DeltaTime * rotateSlowdownFactor);
 

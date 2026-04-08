@@ -324,10 +324,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _smoothType: 0
   _subdivisions: 2
-  _iterations: 2
+  _iterations: 4
   _strength: 0.5
   _uniformLength: 1
-  _maxSegmentLength: 2
+  _maxSegmentLength: 1
   _bezierTangentLength: 0.4
   _offset: 0.2
   _factor: 0.1
