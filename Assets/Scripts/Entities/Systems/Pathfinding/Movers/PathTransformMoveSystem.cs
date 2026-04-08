@@ -72,16 +72,6 @@ namespace Entities.Systems.Pathfinding.Movers
 
                     float3 directionToWaypoint = math.normalizesafe(mover.CurrentWaypoint - localTransform.Position);
 
-                    if (mover.EnableRotation)
-                    {
-                        moveDirection.y = directionToWaypoint.y;
-                        moveDirection = math.normalizesafe(moveDirection);
-                    }
-                    else
-                    {
-                        moveDirection = directionToWaypoint;
-                    }
-
                     if (mover.CanMove)
                     {
                         float facingFactor = 1f;
@@ -94,7 +84,7 @@ namespace Entities.Systems.Pathfinding.Movers
 
                             quaternion targetRotation = quaternion.LookRotationSafe(flatDirectionToWaypoint, math.up());
 
-                            float rotateSlowdownFactor = 1 - math.clamp(dot / 1.1f, 0f, 1f);
+                            float rotateSlowdownFactor = 1 - math.clamp(dot / 1.2f, 0f, 1f);
 
                             localTransform.Rotation = RotateTowards(localTransform.Rotation, targetRotation, mover.RotationSpeed * DeltaTime * rotateSlowdownFactor);
 
@@ -113,6 +103,8 @@ namespace Entities.Systems.Pathfinding.Movers
                     {
                         ApplyDeceleration(ref mover, DeltaTime);
                     }
+
+                    moveDirection = directionToWaypoint;
 
                     localTransform.Position += moveDirection * mover.CurrentSpeed * DeltaTime;
                     agent.ReachedEndOfPath = math.distancesq(localTransform.Position, endOfPath) < endReachedDistanceSq;

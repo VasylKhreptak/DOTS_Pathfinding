@@ -380,6 +380,6 @@ MonoBehaviour:
   _enableRotation: 1
   _rotationSpeed: 360
   _slowWhenNotFacingTarget: 1
-  _pickNextWaypointDistance: 2
+  _pickNextWaypointDistance: 1
   _endReachedDistance: 0.2
   _slowdownDistance: 2
