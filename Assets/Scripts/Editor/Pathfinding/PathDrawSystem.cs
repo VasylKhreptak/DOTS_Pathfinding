@@ -1,6 +1,8 @@
-﻿using Entities.Authoring.Pathfinding;
+﻿using System.Reflection;
+using Entities.Authoring.Pathfinding;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEditor;
 using UnityEngine;
 
 namespace Editor.Pathfinding
@@ -10,17 +12,36 @@ namespace Editor.Pathfinding
     {
         protected override void OnUpdate()
         {
-            foreach (DynamicBuffer<PathWaypoint> waypoints in SystemAPI.Query<DynamicBuffer<PathWaypoint>>())
+            if (Selection.objects != null && Selection.objects.Length > 0)
             {
-                if (waypoints.Length < 2)
-                    continue;
-
-                for (int i = 0; i < waypoints.Length - 1; i++)
+                foreach (Object obj in Selection.objects)
                 {
-                    float3 a = waypoints[i].Value;
-                    float3 b = waypoints[i + 1].Value;
+                    if (obj.GetType().Name == "EntitySelectionProxy")
+                    {
+                        FieldInfo entityIndexField = obj.GetType().GetField("entityIndex", BindingFlags.NonPublic | BindingFlags.Instance);
+                        FieldInfo entityVersionField = obj.GetType().GetField("entityVersion", BindingFlags.NonPublic | BindingFlags.Instance);
 
-                    Debug.DrawLine(a, b, Color.green);
+                        if (entityIndexField != null && entityVersionField != null)
+                        {
+                            int entityIndex = (int)entityIndexField.GetValue(obj);
+                            int entityVersion = (int)entityVersionField.GetValue(obj);
+
+                            Entity entity = new Entity() { Index = entityIndex, Version = entityVersion };
+
+                            if (EntityManager.HasBuffer<PathWaypoint>(entity))
+                            {
+                                DynamicBuffer<PathWaypoint> waypoints = EntityManager.GetBuffer<PathWaypoint>(entity);
+
+                                for (int i = 0; i < waypoints.Length - 1; i++)
+                                {
+                                    float3 a = waypoints[i].Value;
+                                    float3 b = waypoints[i + 1].Value;
+
+                                    Debug.DrawLine(a, b, Color.green);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
