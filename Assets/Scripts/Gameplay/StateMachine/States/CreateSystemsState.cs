@@ -1,5 +1,6 @@
 ﻿using Entities.Systems;
 using Entities.Systems.Pathfinding;
+using Entities.Systems.Pathfinding.AutoRequest;
 using Entities.Systems.Pathfinding.Modifiers;
 using Entities.Systems.Pathfinding.Movers;
 using Gameplay.StateMachine.States.Core;
@@ -79,7 +80,7 @@ namespace Gameplay.StateMachine.States
         {
             CreateSystemManaged<NavMeshBakeSystem, UpdateSystemGroup>();
             CreateSystemManaged<NavMeshObstacleSystem, UpdateSystemGroup>();
-            //request systems
+            CreateSystem<PathIntervalAutoRequestSystem, UpdateSystemGroup>();
             CreateSystem<PathfindingSystem, UpdateSystemGroup>();
             CreateSystem<RadiusModifierSystem, UpdateSystemGroup>();
             CreateSystem<SmoothModifierSystem, UpdateSystemGroup>();
