@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Entities.Authoring.Pathfinding.AutoRequest
 {
-    public class PathDynamicIntervalAutoRequestAuthoring : BaseAutoRequestAuthoring
+    public class DynamicIntervalAutoRequestAuthoring : BaseAutoRequestAuthoring
     {
         [SerializeField] private float _minInterval = 0.3f;
         [SerializeField] private float _minDistance = 10f;
@@ -18,13 +18,13 @@ namespace Entities.Authoring.Pathfinding.AutoRequest
             _maxDistance = Mathf.Max(_maxDistance, _minDistance);
         }
 
-        private class PathDynamicIntervalAutoRequestBaker : Baker<PathDynamicIntervalAutoRequestAuthoring>
+        private class DynamicIntervalAutoRequestBaker : Baker<DynamicIntervalAutoRequestAuthoring>
         {
-            public override void Bake(PathDynamicIntervalAutoRequestAuthoring authoring)
+            public override void Bake(DynamicIntervalAutoRequestAuthoring authoring)
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                AddComponent(entity, new PathDynamicIntervalAutoRequest
+                AddComponent(entity, new DynamicIntervalAutoRequest
                 {
                     MinInterval = authoring._minInterval,
                     MaxInterval = authoring._maxInterval,
@@ -35,7 +35,7 @@ namespace Entities.Authoring.Pathfinding.AutoRequest
         }
     }
 
-    public struct PathDynamicIntervalAutoRequest : IComponentData
+    public struct DynamicIntervalAutoRequest : IComponentData
     {
         public float MinInterval;
         public float MaxInterval;

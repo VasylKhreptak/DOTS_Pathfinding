@@ -8,7 +8,7 @@ using Unity.Transforms;
 namespace Entities.Systems.Pathfinding.AutoRequest
 {
     [BurstCompile]
-    public partial struct PathDynamicIntervalAutoRequestSystem : ISystem
+    public partial struct DestinationChangeAutoRequestSystem : ISystem
     {
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
@@ -27,8 +27,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
             public float ElapsedTime;
 
             public void Execute(in LocalToWorld localToWorld, in MinAutoRequestInterval minAutoRequestInterval,
-                in DynamicIntervalAutoRequest dynamicIntervalAutoRequest, ref Seeker seeker,
-                in Agent agent, in Destination destination)
+                in DestinationChangeAutoRequest destinationChangeAutoRequest, ref Seeker seeker, in Agent agent, in Destination destination)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
@@ -39,17 +38,19 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
-                float minDistanceSq = dynamicIntervalAutoRequest.MinDistance * dynamicIntervalAutoRequest.MinDistance;
-                float maxDistanceSq = dynamicIntervalAutoRequest.MaxDistance * dynamicIntervalAutoRequest.MaxDistance;
+                float3 lastPathUpdateDestination = seeker.RequestEndPosition;
 
-                float distanceSq = math.distancesq(localToWorld.Position, destination.Value);
+                float minDistanceSq = destinationChangeAutoRequest.MinDistance * destinationChangeAutoRequest.MinDistance;
+                float maxDistanceSq = destinationChangeAutoRequest.MaxDistance * destinationChangeAutoRequest.MaxDistance;
 
-                float interval = math.remap(minDistanceSq, maxDistanceSq, dynamicIntervalAutoRequest.MinInterval, dynamicIntervalAutoRequest.MaxInterval,
+                float distanceSq = math.distancesq(destination.Value, lastPathUpdateDestination);
+
+                float threshold = math.remap(minDistanceSq, maxDistanceSq, destinationChangeAutoRequest.MinThreshold, destinationChangeAutoRequest.MaxThreshold,
                     distanceSq);
 
-                interval = math.clamp(interval, dynamicIntervalAutoRequest.MinInterval, dynamicIntervalAutoRequest.MaxInterval);
+                threshold = math.clamp(threshold, destinationChangeAutoRequest.MinThreshold, destinationChangeAutoRequest.MaxThreshold);
 
-                if (ElapsedTime > seeker.LastUpdateTime + interval)
+                if (distanceSq > threshold * threshold)
                     seeker.Status = PathStatus.Requested;
             }
         }

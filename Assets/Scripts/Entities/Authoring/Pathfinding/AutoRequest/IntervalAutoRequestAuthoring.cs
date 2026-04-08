@@ -3,19 +3,19 @@ using UnityEngine;
 
 namespace Entities.Authoring.Pathfinding.AutoRequest
 {
-    public class PathIntervalAutoRequestAuthoring : BaseAutoRequestAuthoring
+    public class IntervalAutoRequestAuthoring : BaseAutoRequestAuthoring
     {
         [SerializeField] private float _value = 1f;
 
         private void OnValidate() => _value = Mathf.Max(_value, 0f);
 
-        private class PathIntervalAutoRequestBaker : Baker<PathIntervalAutoRequestAuthoring>
+        private class IntervalAutoRequestBaker : Baker<IntervalAutoRequestAuthoring>
         {
-            public override void Bake(PathIntervalAutoRequestAuthoring authoring)
+            public override void Bake(IntervalAutoRequestAuthoring authoring)
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                AddComponent(entity, new PathIntervalAutoRequest
+                AddComponent(entity, new IntervalAutoRequest
                 {
                     Value = authoring._value
                 });
@@ -23,7 +23,7 @@ namespace Entities.Authoring.Pathfinding.AutoRequest
         }
     }
 
-    public struct PathIntervalAutoRequest : IComponentData
+    public struct IntervalAutoRequest : IComponentData
     {
         public float Value;
     }

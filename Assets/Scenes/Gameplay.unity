@@ -512,10 +512,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1abd4b3921e4f23a22970515c998053, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _minInterval: 0.1
-  _minDistance: 10
-  _maxInterval: 4
-  _maxDistance: 300
 --- !u!114 &680839708
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -543,7 +539,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _startPositionSnappingDistance: 500
   _destinationPositionSnappingDistance: 500
-  _calculateInterval: 0.1
 --- !u!114 &680839710
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1054,7 +1049,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: 7778c96ea802c3249af01d3e58f6bd0c, type: 2}
   m_BuildHeightMesh: 0
 --- !u!4 &1372685378
 Transform:

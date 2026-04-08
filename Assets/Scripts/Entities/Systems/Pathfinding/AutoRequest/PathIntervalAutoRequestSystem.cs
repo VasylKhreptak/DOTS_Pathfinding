@@ -24,7 +24,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
         {
             public float ElapsedTime;
 
-            public void Execute(in MinAutoRequestInterval minAutoRequestInterval, in PathIntervalAutoRequest pathIntervalAutoRequest, ref Seeker seeker, in Agent agent)
+            public void Execute(in MinAutoRequestInterval minAutoRequestInterval, in IntervalAutoRequest intervalAutoRequest, ref Seeker seeker, in Agent agent)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
@@ -35,7 +35,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
-                if (ElapsedTime > seeker.LastUpdateTime + pathIntervalAutoRequest.Value)
+                if (ElapsedTime > seeker.LastUpdateTime + intervalAutoRequest.Value)
                     seeker.Status = PathStatus.Requested;
             }
         }
