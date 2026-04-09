@@ -61,6 +61,7 @@ namespace Gameplay.StateMachine.States
         {
             CreateSystem<TickCountSystem, EarlyUpdateSystemGroup>();
             CreateSystem<RandomInitializationSystem, EarlyUpdateSystemGroup>();
+            CreateSystem<AgentInitializationSystem, EarlyUpdateSystemGroup>();
         }
 
         private void CreateFixedUpdateSystems()

@@ -22,6 +22,7 @@ namespace Entities.Authoring.Pathfinding
                 };
 
                 AddComponent(entity, agent);
+                AddComponent<AgentNeedsInitializationFlag>(entity);
             }
         }
     }
@@ -32,4 +33,6 @@ namespace Entities.Authoring.Pathfinding
         public bool ReachedEndOfPath;
         public bool ReachedDestination;
     }
+
+    public struct AgentNeedsInitializationFlag : IComponentData, IEnableableComponent { }
 }
