@@ -6,8 +6,8 @@ namespace Entities.Authoring.Pathfinding
 {
     public class SeekerAuthoring : MonoBehaviour
     {
-        [SerializeField] private float _startPositionSnappingDistance = 500f;
-        [SerializeField] private float _destinationPositionSnappingDistance = 500f;
+        [SerializeField] private float _startPositionSnappingDistance = 25f;
+        [SerializeField] private float _destinationPositionSnappingDistance = 25f;
 
         #region MonoBehaviour
 
