@@ -275,8 +275,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00696dc139e84cdaa11db404f518d934, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _startPositionSnappingDistance: 25
-  _destinationPositionSnappingDistance: 25
+  _startPositionSnappingDistance: 15
+  _destinationPositionSnappingDistance: 15
 --- !u!114 &2857698893846666639
 MonoBehaviour:
   m_ObjectHideFlags: 0
