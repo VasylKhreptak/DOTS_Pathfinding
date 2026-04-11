@@ -27,7 +27,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
             public float ElapsedTime;
 
             public void Execute(in LocalToWorld localToWorld, in MinAutoRequestInterval minAutoRequestInterval,
-                in DynamicIntervalAutoRequest dynamicIntervalAutoRequest, ref Seeker seeker, in Destination destination)
+                in DynamicIntervalAutoRequest dynamicIntervalAutoRequest, ref Seeker seeker, in Destination destination, in Agent agent)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
@@ -35,6 +35,9 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
+                if (agent.ReachedEndOfPath || agent.ReachedDestination)
+                    return;
+                
                 float minDistanceSq = dynamicIntervalAutoRequest.MinDistance * dynamicIntervalAutoRequest.MinDistance;
                 float maxDistanceSq = dynamicIntervalAutoRequest.MaxDistance * dynamicIntervalAutoRequest.MaxDistance;
 

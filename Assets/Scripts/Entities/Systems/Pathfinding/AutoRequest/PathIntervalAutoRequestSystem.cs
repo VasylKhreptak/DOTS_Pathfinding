@@ -24,12 +24,15 @@ namespace Entities.Systems.Pathfinding.AutoRequest
         {
             public float ElapsedTime;
 
-            public void Execute(in MinAutoRequestInterval minAutoRequestInterval, in IntervalAutoRequest intervalAutoRequest, ref Seeker seeker)
+            public void Execute(in MinAutoRequestInterval minAutoRequestInterval, in IntervalAutoRequest intervalAutoRequest, ref Seeker seeker, in Agent agent)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
 
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
+                    return;
+
+                if (agent.ReachedEndOfPath || agent.ReachedDestination)
                     return;
 
                 if (ElapsedTime > seeker.LastUpdateTime + intervalAutoRequest.Value)

@@ -27,12 +27,15 @@ namespace Entities.Systems.Pathfinding.AutoRequest
             public float ElapsedTime;
 
             public void Execute(in LocalToWorld localToWorld, in MinAutoRequestInterval minAutoRequestInterval,
-                in DestinationChangeAutoRequest destinationChangeAutoRequest, ref Seeker seeker, in Destination destination)
+                in DestinationChangeAutoRequest destinationChangeAutoRequest, ref Seeker seeker, in Destination destination, in Agent agent)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
 
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
+                    return;
+
+                if (agent.ReachedEndOfPath || agent.ReachedDestination)
                     return;
 
                 float3 lastPathUpdateDestination = seeker.RequestEndPosition;

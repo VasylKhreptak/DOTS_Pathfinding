@@ -47,7 +47,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
             public float ElapsedTime;
 
             public void Execute(in MinAutoRequestInterval minAutoRequestInterval, in NavMeshObstacleOverlapAutoRequest navMeshObstacleOverlapAutoRequest,
-                ref Seeker seeker, in DynamicBuffer<PathCorner> pathCorners)
+                ref Seeker seeker, in DynamicBuffer<PathCorner> pathCorners, in Agent agent)
             {
                 if (ElapsedTime < seeker.LastUpdateTime + minAutoRequestInterval.Value)
                     return;
@@ -56,6 +56,9 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                     return;
 
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
+                    return;
+
+                if (agent.ReachedEndOfPath || agent.ReachedDestination)
                     return;
 
                 if (IsPathOverlappingWithNavMeshObstacles(in pathCorners))
