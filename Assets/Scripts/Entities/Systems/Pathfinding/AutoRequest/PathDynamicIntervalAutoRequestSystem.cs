@@ -8,6 +8,7 @@ using Unity.Transforms;
 namespace Entities.Systems.Pathfinding.AutoRequest
 {
     [BurstCompile]
+    [DisableAutoCreation]
     public partial struct PathDynamicIntervalAutoRequestSystem : ISystem
     {
         [BurstCompile]

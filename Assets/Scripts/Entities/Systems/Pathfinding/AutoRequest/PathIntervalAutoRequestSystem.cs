@@ -6,6 +6,7 @@ using Unity.Entities;
 namespace Entities.Systems.Pathfinding.AutoRequest
 {
     [BurstCompile]
+    [DisableAutoCreation]
     public partial struct PathIntervalAutoRequestSystem : ISystem
     {
         [BurstCompile]

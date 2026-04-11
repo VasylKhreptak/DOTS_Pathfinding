@@ -12,6 +12,7 @@ using NavMeshObstacle = Entities.Bakers.Pathfinding.NavMeshObstacle;
 namespace Entities.Systems.Pathfinding.AutoRequest
 {
     [BurstCompile]
+    [DisableAutoCreation]
     public partial struct NavMeshObstacleOverlapAutoRequestSystem : ISystem
     {
         private EntityQuery _obstacleQuery;
@@ -32,6 +33,8 @@ namespace Entities.Systems.Pathfinding.AutoRequest
 
             MakeRequestsJob makeRequestsJob = new MakeRequestsJob()
             {
+                Obstacles = obstacles,
+                ObstacleLocalToWorlds = obstacleLocalToWorlds,
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime
             };
 

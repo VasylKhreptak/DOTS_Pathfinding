@@ -83,6 +83,8 @@ namespace Gameplay.StateMachine.States
             CreateSystemManaged<NavMeshObstacleSystem, UpdateSystemGroup>();
             CreateSystem<PathIntervalAutoRequestSystem, UpdateSystemGroup>();
             CreateSystem<PathDynamicIntervalAutoRequestSystem, UpdateSystemGroup>();
+            CreateSystem<DestinationChangeAutoRequestSystem, UpdateSystemGroup>();
+            CreateSystem<NavMeshObstacleOverlapAutoRequestSystem, UpdateSystemGroup>();
             CreateSystem<PathfindingSystem, UpdateSystemGroup>();
             CreateSystem<RadiusModifierSystem, UpdateSystemGroup>();
             CreateSystem<SmoothModifierSystem, UpdateSystemGroup>();
