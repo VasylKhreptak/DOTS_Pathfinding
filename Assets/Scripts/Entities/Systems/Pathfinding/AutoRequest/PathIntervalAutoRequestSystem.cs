@@ -33,7 +33,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
-                if (agent.ReachedEndOfPath || agent.ReachedDestination)
+                if (agent.ReachedDestination)
                     return;
 
                 if (ElapsedTime > seeker.LastUpdateTime + intervalAutoRequest.Value)

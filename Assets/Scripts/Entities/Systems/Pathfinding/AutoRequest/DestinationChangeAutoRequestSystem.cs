@@ -36,7 +36,7 @@ namespace Entities.Systems.Pathfinding.AutoRequest
                 if (seeker.Status == PathStatus.Requested || seeker.Status == PathStatus.InProgress)
                     return;
 
-                if (agent.ReachedEndOfPath || agent.ReachedDestination)
+                if (agent.ReachedDestination)
                     return;
 
                 float3 lastPathUpdateDestination = seeker.RequestEndPosition;
