@@ -28,6 +28,19 @@ namespace Editor.Pathfinding
 
                             Entity entity = new Entity() { Index = entityIndex, Version = entityVersion };
 
+                            if (EntityManager.HasBuffer<PathCorner>(entity))
+                            {
+                                DynamicBuffer<PathCorner> corners = EntityManager.GetBuffer<PathCorner>(entity);
+
+                                for (int i = 0; i < corners.Length - 1; i++)
+                                {
+                                    float3 a = corners[i].Value;
+                                    float3 b = corners[i + 1].Value;
+
+                                    Debug.DrawLine(a, b, Color.blue);
+                                }
+                            }
+
                             if (EntityManager.HasBuffer<PathWaypoint>(entity))
                             {
                                 DynamicBuffer<PathWaypoint> waypoints = EntityManager.GetBuffer<PathWaypoint>(entity);

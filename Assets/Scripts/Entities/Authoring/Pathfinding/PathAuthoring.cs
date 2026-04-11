@@ -12,9 +12,16 @@ namespace Entities.Authoring.Pathfinding
             {
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
+                AddBuffer<PathCorner>(entity);
                 AddBuffer<PathWaypoint>(entity);
             }
         }
+    }
+
+    [InternalBufferCapacity(128)]
+    public struct PathCorner : IBufferElementData
+    {
+        public float3 Value;
     }
 
     [InternalBufferCapacity(256)]

@@ -270,7 +270,7 @@ namespace Entities.Systems.Pathfinding
 
             [NativeDisableUnsafePtrRestriction] public NavMeshQuery* NavMeshQueriesPtr;
 
-            public void Execute(in LocalToWorld localToWorld, in Agent agent, in Destination destination, ref Seeker seeker,
+            public void Execute(in LocalToWorld localToWorld, in Agent agent, in Destination destination, ref Seeker seeker, DynamicBuffer<PathCorner> pathCorners,
                 DynamicBuffer<PathWaypoint> pathWaypoints, in SeekerQuerryIndex seekerQuerryIndex)
             {
                 if (seekerQuerryIndex.Value == -1)
@@ -285,9 +285,14 @@ namespace Entities.Systems.Pathfinding
 
                     if (math.distancesq(localToWorld.Position, destination.Value) < 0.01f)
                     {
+                        pathCorners.Clear();
+                        pathCorners.Add(new PathCorner { Value = seeker.RequestStartPosition });
+                        pathCorners.Add(new PathCorner { Value = seeker.RequestEndPosition });
+
                         pathWaypoints.Clear();
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestStartPosition });
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestEndPosition });
+
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Success;
@@ -298,6 +303,7 @@ namespace Entities.Systems.Pathfinding
 
                     if (!query.IsValid(startLocation))
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -309,6 +315,7 @@ namespace Entities.Systems.Pathfinding
 
                     if (!query.IsValid(endLocation))
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -320,6 +327,7 @@ namespace Entities.Systems.Pathfinding
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -339,6 +347,7 @@ namespace Entities.Systems.Pathfinding
 
                     if (status != PathQueryStatus.InProgress && status != PathQueryStatus.Success)
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -353,6 +362,7 @@ namespace Entities.Systems.Pathfinding
 
                     if ((status & PathQueryStatus.Success) == 0)
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -393,6 +403,7 @@ namespace Entities.Systems.Pathfinding
 
                     if ((status & PathQueryStatus.Success) == 0)
                     {
+                        pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
@@ -400,10 +411,14 @@ namespace Entities.Systems.Pathfinding
                         return;
                     }
 
+                    pathCorners.Clear();
                     pathWaypoints.Clear();
 
                     if (result.Length == 1)
+                    {
+                        pathCorners.Add(new PathCorner() { Value = seeker.NavMeshStartPosition });
                         pathWaypoints.Add(new PathWaypoint() { Value = seeker.NavMeshStartPosition });
+                    }
 
                     for (int i = 0; i < result.Length; i++)
                     {
@@ -412,11 +427,17 @@ namespace Entities.Systems.Pathfinding
                         if (location.position == Vector3.zero)
                             continue;
 
+                        PathCorner pathCorner = new PathCorner()
+                        {
+                            Value = location.position
+                        };
+
                         PathWaypoint waypoint = new PathWaypoint
                         {
                             Value = location.position
                         };
 
+                        pathCorners.Add(pathCorner);
                         pathWaypoints.Add(waypoint);
                     }
 
