@@ -5,7 +5,7 @@ namespace Entities.Authoring.Pathfinding.AutoRequest
 {
     public class IntervalAutoRequestAuthoring : BaseAutoRequestAuthoring
     {
-        [SerializeField] private float _value = 1f;
+        [SerializeField] private float _value = 2f;
 
         private void OnValidate() => _value = Mathf.Max(_value, 0f);
 
