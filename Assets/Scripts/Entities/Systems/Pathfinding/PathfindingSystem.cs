@@ -52,6 +52,7 @@ namespace Entities.Systems.Pathfinding
                 state.EntityManager.CreateSingleton<PathfindingSystemData>();
 
             state.RequireForUpdate<TickCount>();
+            state.RequireForUpdate<FixedTickCount>();
             state.RequireForUpdate<PathfindingSystemData>();
             state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
             state.RequireForUpdate<PathfindingSettings>();
@@ -114,12 +115,14 @@ namespace Entities.Systems.Pathfinding
         private unsafe JobHandle ProcessPathCalculation(ref SystemState state, JobHandle dependency)
         {
             TickCount tickCount = SystemAPI.GetSingleton<TickCount>();
+            FixedTickCount fixedTickCount = SystemAPI.GetSingleton<FixedTickCount>();
             PathfindingSettings settings = SystemAPI.GetSingleton<PathfindingSettings>();
 
             ProcessPathCalculationJob processPathCalculationJob = new ProcessPathCalculationJob
             {
                 ElapsedTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
                 TickCount = tickCount,
+                FixedTickCount = fixedTickCount,
                 SystemData = SystemAPI.GetSingleton<PathfindingSystemData>(),
                 Settings = settings,
                 NavMeshQueriesPtr = (NavMeshQuery*)_navMeshQueries.GetUnsafePtr()
@@ -265,6 +268,7 @@ namespace Entities.Systems.Pathfinding
         {
             public float ElapsedTime;
             public TickCount TickCount;
+            public FixedTickCount FixedTickCount;
             public PathfindingSystemData SystemData;
             public PathfindingSettings Settings;
 
@@ -294,6 +298,7 @@ namespace Entities.Systems.Pathfinding
                         pathWaypoints.Add(new PathWaypoint { Value = seeker.RequestEndPosition });
 
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Success;
                         return;
@@ -306,6 +311,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -318,6 +324,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -330,6 +337,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -350,6 +358,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -365,6 +374,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -406,6 +416,7 @@ namespace Entities.Systems.Pathfinding
                         pathCorners.Clear();
                         pathWaypoints.Clear();
                         seeker.LastUpdateTickCount = TickCount.Value;
+                        seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                         seeker.LastUpdateTime = ElapsedTime;
                         seeker.Status = PathStatus.Failure;
                         return;
@@ -443,6 +454,7 @@ namespace Entities.Systems.Pathfinding
 
                     DisposeTempCollections();
                     seeker.LastUpdateTickCount = TickCount.Value;
+                    seeker.LastUpdateFixedTickCount = FixedTickCount.Value;
                     seeker.LastUpdateTime = ElapsedTime;
                     seeker.Status = PathStatus.Success;
                 }

@@ -7,19 +7,19 @@ namespace Entities.Systems
 {
     [BurstCompile]
     [DisableAutoCreation]
-    public partial struct TickCountSystem : ISystem
+    public partial struct FixedTickCountSystem : ISystem
     {
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.EntityManager.CreateSingleton<TickCount>();
+            state.EntityManager.CreateSingleton<FixedTickCount>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            RefRW<TickCount> tickCount = SystemAPI.GetSingletonRW<TickCount>();
-            tickCount.ValueRW.Value++;
+            RefRW<FixedTickCount> fixedTickCount = SystemAPI.GetSingletonRW<FixedTickCount>();
+            fixedTickCount.ValueRW.Value++;
         }
     }
 }

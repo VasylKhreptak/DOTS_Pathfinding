@@ -44,6 +44,7 @@ namespace Entities.Authoring.Pathfinding
         public PathStatus Status;
         public float LastUpdateTime;
         public long LastUpdateTickCount;
+        public long LastUpdateFixedTickCount;
 
         public float3 RequestStartPosition;
         public float3 RequestEndPosition;

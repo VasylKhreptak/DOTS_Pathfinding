@@ -66,7 +66,9 @@ namespace Gameplay.StateMachine.States
 
         private void CreateFixedUpdateSystems()
         {
+            CreateSystem<FixedTickCountSystem, FixedUpdateSystemGroup>();
             CreateSystem<RigidbodyConstraintsSystem, FixedUpdateSystemGroup>();
+            CreateSystem<PathRigidbodyMoverSystem, FixedUpdateSystemGroup>();
         }
 
         private void CreateUpdateSystems()
