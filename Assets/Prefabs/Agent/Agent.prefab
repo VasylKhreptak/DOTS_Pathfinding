@@ -194,7 +194,6 @@ GameObject:
   - component: {fileID: -2804765798001502821}
   - component: {fileID: 4406192268136664268}
   - component: {fileID: -9047696819108051743}
-  - component: {fileID: 8932060418557266108}
   - component: {fileID: -593214546280803899}
   m_Layer: 0
   m_Name: Agent
@@ -417,26 +416,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &8932060418557266108
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8045355591343965381}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3cd3b446e587453fb1021f8797ad23be, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _position:
-    x: 0
-    y: 0
-    z: 0
-  _rotation:
-    x: 1
-    y: 1
-    z: 1
 --- !u!114 &-593214546280803899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -451,10 +430,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _canMove: 1
   _forcePerKg: 10
-  _desiredSpeed: 5
+  _desiredSpeed: 1
   _enableRotation: 1
   _rotationSpeed: 360
   _slowWhenNotFacingTarget: 1
   _pickNextWaypointDistance: 2
-  _endReachedDistance: 0.2
-  _slowdownDistance: 0.6
+  _endReachedDistance: 0.4
+  _slowdownDistance: 0.8

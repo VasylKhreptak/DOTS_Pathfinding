@@ -83,11 +83,15 @@ namespace Entities.Systems.Pathfinding.Movers
 
                             float dot = math.dot(transformForward, flatDirectionToWaypoint);
 
-                            quaternion targetRotation = quaternion.LookRotationSafe(flatDirectionToWaypoint, math.up());
-
                             float rotateSlowdownFactor = 1 - math.clamp(dot / 1.15f, 0f, 1f);
 
-                            localTransform.Rotation = RotateTowards(localTransform.Rotation, targetRotation, mover.RotationSpeed * DeltaTime * rotateSlowdownFactor);
+                            float3 crossProductToTarget = math.cross(transformForward, flatDirectionToWaypoint);
+
+                            float rotationSpeedRadians = math.radians(mover.RotationSpeed);
+
+                            float yVelocity = rotationSpeedRadians * rotateSlowdownFactor * (crossProductToTarget.y >= 0f ? -1 : 1);
+
+                            physicsVelocity.Angular = new float3(0f, yVelocity, 0f);
 
                             if (mover.SlowWhenNotFacingTarget)
                                 facingFactor = math.clamp(dot, 0f, 1f);
@@ -96,6 +100,7 @@ namespace Entities.Systems.Pathfinding.Movers
                         float distanceToEndOfPathSq = math.distancesq(localTransform.Position, endOfPath);
                         float slowdownDistanceSq = mover.SlowdownDistance * mover.SlowdownDistance;
                         float distanceSlowdownFactor = math.clamp(distanceToEndOfPathSq / slowdownDistanceSq, 0f, 1f);
+                        distanceSlowdownFactor = math.pow(distanceSlowdownFactor, 1 / 2f);
 
                         float currentSpeed = math.length(physicsVelocity.Linear);
                         float reachedSpeedFactor = math.pow(1 - math.clamp(math.unlerp(0f, mover.DesiredSpeed, currentSpeed), 0, 1), 1f / 5f);
@@ -153,12 +158,6 @@ namespace Entities.Systems.Pathfinding.Movers
                 waypointInfo.Position = closestWaypoint;
                 waypointInfo.Index = closestWaypointIndex;
                 return waypointInfo;
-            }
-
-            private quaternion RotateTowards(quaternion from, quaternion to, float maxDegreesDelta)
-            {
-                float angle = math.angle(from, to);
-                return math.slerp(from, to, math.min(1f, math.radians(maxDegreesDelta) / angle));
             }
 
             private struct WaypointInfo

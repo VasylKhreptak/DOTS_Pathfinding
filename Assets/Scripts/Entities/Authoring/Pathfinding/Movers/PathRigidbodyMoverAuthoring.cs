@@ -1,16 +1,15 @@
-﻿using Gameplay.Components.PhysicsAdditions;
-using Unity.Entities;
+﻿using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using RigidbodyConstraints = Gameplay.Components.PhysicsAdditions.RigidbodyConstraints;
 
 namespace Entities.Authoring.Pathfinding.Movers
 {
     [RequireComponent(typeof(Rigidbody))]
-    [RequireComponent(typeof(RigidbodyConstraintsAuthoring))]
     public class PathRigidbodyMoverAuthoring : PathMoverAuthoring
     {
         [SerializeField] private bool _canMove = true;
-        [SerializeField] private float _forcePerKg = 5f;
+        [SerializeField] private float _forcePerKg = 10f;
         [SerializeField] private float _desiredSpeed = 1f;
         [SerializeField] private bool _enableRotation = true;
         [SerializeField] private float _rotationSpeed = 360f;
@@ -47,6 +46,17 @@ namespace Entities.Authoring.Pathfinding.Movers
                     EndReachedDistance = authoring._endReachedDistance,
                     SlowdownDistance = authoring._slowdownDistance
                 });
+
+                RigidbodyConstraints constraints = new RigidbodyConstraints
+                {
+                    InitialPosition = authoring.transform.position,
+                    InitialRotation = authoring.transform.rotation,
+
+                    Position = new bool3(false, false, false),
+                    Rotation = new bool3(true, false, true)
+                };
+
+                AddComponent(entity, constraints);
             }
         }
     }
