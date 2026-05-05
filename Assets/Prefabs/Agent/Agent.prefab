@@ -193,8 +193,7 @@ GameObject:
   - component: {fileID: 9005012149215730810}
   - component: {fileID: -2804765798001502821}
   - component: {fileID: 4406192268136664268}
-  - component: {fileID: -9047696819108051743}
-  - component: {fileID: -593214546280803899}
+  - component: {fileID: 6564461993704568688}
   m_Layer: 0
   m_Name: Agent
   m_TagString: Untagged
@@ -389,34 +388,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _value: 2
---- !u!54 &-9047696819108051743
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8045355591343965381}
-  serializedVersion: 4
-  m_Mass: 90
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
---- !u!114 &-593214546280803899
+--- !u!114 &6564461993704568688
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -425,15 +397,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 8045355591343965381}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: be895273725043da8d88e14439a71d77, type: 3}
+  m_Script: {fileID: 11500000, guid: 8be12b8974b84e2a8253661e8eff318e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _canMove: 1
-  _forcePerKg: 10
-  _desiredSpeed: 1
+  _maxSpeed: 5
+  _acceleration: 5
+  _deceleration: 5
   _enableRotation: 1
   _rotationSpeed: 360
   _slowWhenNotFacingTarget: 1
-  _pickNextWaypointDistance: 2
-  _endReachedDistance: 0.4
-  _slowdownDistance: 0.8
+  _pickNextWaypointDistance: 3
+  _endReachedDistance: 0.2
+  _slowdownDistance: 0.6
