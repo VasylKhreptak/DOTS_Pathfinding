@@ -15,7 +15,7 @@ namespace Entities.Systems.Pathfinding
         [WithAll(typeof(Agent))]
         private partial struct InitializeAgentsJob : IJobEntity
         {
-            public void Execute(ref LocalTransform localTransform, ref Destination destination, EnabledRefRW<AgentNeedsInitializationFlag> agentNeedsInitializationFlag)
+            public void Execute(in LocalTransform localTransform, ref Destination destination, EnabledRefRW<AgentNeedsInitializationFlag> agentNeedsInitializationFlag)
             {
                 destination.Value = localTransform.Position;
                 agentNeedsInitializationFlag.ValueRW = false;
